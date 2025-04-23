@@ -2,7 +2,7 @@
 
 from typing import Dict, Any, Optional, List, Literal
 
-from agents import function_tool
+from local_agents import function_tool
 from ..engine.factory import agent_factory
 from ..engine.runner import runner_factory
 

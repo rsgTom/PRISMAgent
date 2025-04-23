@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import List
 
-from agents import Agent, AgentHooks, RunContextWrapper, Tool
+from local_agents import Agent, AgentHooks, RunContextWrapper, Tool
 from PRISMAgent.storage import registry_factory
 
 _REGISTRY = registry_factory()  # singleton
