@@ -1,60 +1,80 @@
-"""Base configuration settings for PRISMAgent."""
+"""
+PRISMAgent.config.base
+---------------------
 
-from typing import Optional
-from pydantic import BaseModel, Field
+Base settings and configuration for the PRISMAgent package.
+"""
+
+from typing import Any, Dict, Optional
 
 
-class BaseSettings(BaseModel):
-    """Base settings for the PRISMAgent framework.
+class BaseSettings:
+    """Base settings class for PRISMAgent configuration."""
     
-    This class defines common settings used throughout the application.
-    Environment variables take precedence over values defined here.
-    """
-    
-    api_key: str = Field(
-        ..., 
-        description="OpenAI API key", 
-        env="OPENAI_API_KEY"
-    )
-    model_name: str = Field(
-        "gpt-4", 
-        description="Default model name", 
-        env="DEFAULT_MODEL_NAME"
-    )
-    max_tokens: int = Field(
-        1000, 
-        description="Default max tokens", 
-        env="DEFAULT_MAX_TOKENS"
-    )
-    temperature: float = Field(
-        0.7, 
-        description="Default temperature", 
-        env="DEFAULT_TEMPERATURE"
-    )
-    log_level: str = Field(
-        "INFO", 
-        description="Logging level", 
-        env="LOG_LEVEL"
-    )
-    debug: bool = Field(
-        False, 
-        description="Debug mode", 
-        env="DEBUG_MODE"
-    )
-    storage_type: str = Field(
-        "file", 
-        description="Storage backend type (file, redis, supabase, vector)", 
-        env="STORAGE_TYPE"
-    )
-    storage_path: Optional[str] = Field(
-        None, 
-        description="Path for file storage", 
-        env="STORAGE_PATH"
-    )
-    
-    class Config:
-        """Configuration for the BaseSettings model."""
+    def __init__(
+        self,
+        api_key: str = "mock-api-key",
+        model_name: str = "gpt-3.5-turbo",
+        max_tokens: int = 1000,
+        temperature: float = 0.7,
+        **kwargs: Any,
+    ):
+        """
+        Initialize base settings.
         
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        allow_mutation = True 
+        Parameters
+        ----------
+        api_key : str
+            API key for OpenAI
+        model_name : str
+            Model name to use
+        max_tokens : int
+            Maximum tokens to generate
+        temperature : float
+            Temperature for generation
+        **kwargs : Any
+            Additional keyword arguments
+        """
+        self.api_key = api_key
+        self.model_name = model_name
+        self.max_tokens = max_tokens
+        self.temperature = temperature
+        self._extra_settings = kwargs
+        
+    def get(self, key: str, default: Any = None) -> Any:
+        """
+        Get a setting by key.
+        
+        Parameters
+        ----------
+        key : str
+            Setting key
+        default : Any
+            Default value if key not found
+            
+        Returns
+        -------
+        Any
+            Setting value
+        """
+        if hasattr(self, key):
+            return getattr(self, key)
+        return self._extra_settings.get(key, default)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert settings to dictionary.
+        
+        Returns
+        -------
+        Dict[str, Any]
+            Settings as dictionary
+        """
+        result = {
+            "api_key": "***",  # Don't include actual API key
+            "model_name": self.model_name,
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+        }
+        result.update(self._extra_settings)
+        return result 

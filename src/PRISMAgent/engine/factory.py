@@ -1,70 +1,72 @@
 """
 PRISMAgent.engine.factory
-===========================
+-------------------------
 
-🍋  Core agent-creation utilities that *must* be used by every part of the
-code-base (tools, plug-ins, tasks) instead of calling `Agent(...)` directly.
-Keeps one authoritative place for:
+Central factory for creating or retrieving agents.
 
-• Model defaults
-• Hook wiring (handoff, tracing, redaction, …)
-• Registry persistence (in-memory ⬌ Redis ⬌ Supabase)
-
-→  File size <200 LOC by contract.  Add new helpers in a separate module.
+Key additions
+-------------
+* Dynamic model selection via MODEL_SETTINGS.get_model_for_task()
+* Optional `task` and `complexity` kwargs so callers (or the LLM) can
+  influence the tier without hard-coding a model name.
 """
 
 from __future__ import annotations
 
-from typing import Iterable, List, Sequence
+from typing import Iterable, List, Literal, Sequence
 
-from agents import Agent, AgentHooks, RunContextWrapper, Tool, function_tool
-from project_name.config.model import MODEL_SETTINGS  # ↩︎ centralised model config
-from project_name.storage import registry_factory
+from agents import Agent, AgentHooks, Tool, function_tool
+from PRISMAgent.storage import registry_factory
+from PRISMAgent.config.model import MODEL_SETTINGS
 
-# --------------------------------------------------------------------------- #
-# 0.  Registry singleton (back-end decided by STORAGE_BACKEND env var)        #
-# --------------------------------------------------------------------------- #
+# ──────────────────────────────────────────────────────────────────────────────
+# Registry singleton (backend chosen via STORAGE_BACKEND env-var)
+# ──────────────────────────────────────────────────────────────────────────────
+_REGISTRY = registry_factory()       # InMemoryRegistry, RedisRegistry, …
 
-_REGISTRY = registry_factory()  # e.g. InMemoryRegistry, RedisRegistry, …
-
-# --------------------------------------------------------------------------- #
-# 1.  Public factory                                                         #
-# --------------------------------------------------------------------------- #
-
-
+# ──────────────────────────────────────────────────────────────────────────────
+# Public factory
+# ──────────────────────────────────────────────────────────────────────────────
 def agent_factory(
     name: str,
     instructions: str,
     *,
     tools: Iterable[Tool] | None = None,
     hooks: Sequence[AgentHooks] | None = None,
+    task: str = "chat",
+    complexity: Literal["auto", "basic", "advanced"] = "auto",
+    model: str | None = None,
 ) -> Agent:
     """
-    Create **or** fetch an `Agent`.
+    Create **or** fetch an `Agent` and store it in the global registry.
 
     Parameters
     ----------
-    name : str
-        Unique handle (also used to generate transfer tool names).
-    instructions : str
-        System prompt for the agent.
-    tools : Iterable[Tool] | None
-        Collection of OpenAI Function Tools (`@function_tool`) to attach.
-    hooks : Sequence[AgentHooks] | None
-        Extra lifecycle hooks (tracing, redaction, …).
+    name : unique agent handle
+    instructions : system prompt
+    tools : iterable of `Tool`
+    hooks : iterable of `AgentHooks`
+    task : logical task category ("chat", "code", "math", "vision", …)
+    complexity : force tier ("basic"/"advanced") or "auto"
+    model : explicit model override; if None we auto-select
 
     Returns
     -------
     Agent
-        Fully-configured agent, persisted in the global registry.
     """
-    if _REGISTRY.exists(name):  # idempotent
+    if _REGISTRY.exists(name):
         return _REGISTRY.get(name)
+
+    chosen_model = (
+        model
+        if model
+        else MODEL_SETTINGS.get_model_for_task(task, complexity=complexity)
+    )
 
     agent = Agent(
         name=name,
         instructions=instructions,
-        model=MODEL_SETTINGS.default_model,
+        model=chosen_model,
         tools=list(tools or []),
         hooks=list(hooks or []),
     )
@@ -72,58 +74,31 @@ def agent_factory(
     return agent
 
 
-# --------------------------------------------------------------------------- #
-# 2.  Runtime-spawn tool (LLM callable)                                       #
-# --------------------------------------------------------------------------- #
-
-
+# ──────────────────────────────────────────────────────────────────────────────
+# LLM-callable spawn tool
+# ──────────────────────────────────────────────────────────────────────────────
 @function_tool
 def spawn_agent(
     name: str,
     instructions: str,
+    task: str = "chat",
+    complexity: Literal["auto", "basic", "advanced"] = "auto",
     model: str | None = None,
 ) -> str:
     """
-    OpenAI function-tool that allows an agent to create another agent on the fly.
+    Tool that lets an agent create a new sub-agent on the fly.
 
-    Returns the `name` so the LLM can pass it as the result in the tool call.
+    The LLM can specify either `model` directly *or* a logical `task`
+    category (plus optional `complexity` tier) and let the factory choose.
     """
-    agent = agent_factory(
+    new_agent = agent_factory(
         name=name,
         instructions=instructions,
-        tools=[],
-        hooks=[],
+        task=task,
+        complexity=complexity,
+        model=model,
     )
-    if model and model != agent.model:
-        agent.model = model  # simple override; advanced tuning lives in config
-    return agent.name
+    return new_agent.name
 
 
-# --------------------------------------------------------------------------- #
-# 3.  Auto-handoff hook                                                      #
-# --------------------------------------------------------------------------- #
-
-
-class DynamicHandoffHook(AgentHooks):
-    """
-    When an agent calls `spawn_agent`, automatically append the new agent
-    to the caller's `handoffs` list so the LLM can `transfer_to_<name>`
-    in the very next turn.
-    """
-
-    async def on_tool_end(  # noqa: D401 (SDK signature)
-        self,
-        context: RunContextWrapper,
-        agent: Agent,
-        tool: Tool,
-        result: str,
-    ) -> None:
-        if tool.name == "spawn_agent" and _REGISTRY.exists(result):
-            agent.handoffs.append(_REGISTRY.get(result))
-
-
-__all__: List[str] = [
-    "agent_factory",
-    "spawn_agent",
-    "DynamicHandoffHook",
-]
+__all__: List[str] = ["agent_factory", "spawn_agent"]

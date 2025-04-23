@@ -1,0 +1,9 @@
+
+[pinecone]
+pinecone-client>=2.0.0
+
+[redis]
+redis>=4.0.0
+
+[supabase]
+supabase>=0.0.1

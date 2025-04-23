@@ -1,10 +1,16 @@
-"""Engine module for PRISMAgent.
-
-This module contains the core domain logic for agent management.
+"""
+PRISMAgent.engine public re-exports.
 """
 
-from .factory import agent_factory
-from .runner import runner_factory
-from .hooks import hook_factory, DynamicHandoffHook
+from PRISMAgent.engine.factory import agent_factory, spawn_agent
+from PRISMAgent.engine.runner import runner_factory, run_agent
+from PRISMAgent.engine.hooks import DynamicHandoffHook, hook_factory
 
-__all__ = ["agent_factory", "runner_factory", "hook_factory", "DynamicHandoffHook"] 
+__all__ = [
+    "agent_factory",
+    "spawn_agent",
+    "runner_factory",
+    "run_agent",
+    "DynamicHandoffHook",
+    "hook_factory",
+]
