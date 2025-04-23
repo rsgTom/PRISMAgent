@@ -1,0 +1,40 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: prism-agent-api
+spec:
+  template:
+    spec:
+      containers:
+      - image: gcr.io/${PROJECT_ID}/prism-agent-api:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: STORAGE_TYPE
+          value: "redis"
+        - name: REDIS_URL
+          value: ${REDIS_CONNECTION_STRING}
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: openai-api-key
+              key: latest
+        resources:
+          limits:
+            cpu: "1"
+            memory: "2Gi"
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          failureThreshold: 5
+          periodSeconds: 2
+      serviceAccountName: prism-agent-sa
+      timeoutSeconds: 300
+      concurrency: 80
+  traffic:
+  - percent: 100
+    latestRevision: true 

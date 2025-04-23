@@ -1,0 +1,101 @@
+project_name/
+├─ pyproject.toml                 # deps, ruff/black/mypy, optional extras=[redis,supabase,pinecone]
+├─ README.md
+├─ AI_README.md                   # root-level design overview for Cursor
+├─ .pre-commit-config.yaml
+├─ mkdocs.yml                     # MkDocs site config
+│
+├─ docs/                          # long-form documentation
+│   ├─ index.md
+│   └─ architecture.md
+│
+├─ examples/                      # runnable demos for devs & agents
+│   ├─ quickstart.py
+│   └─ multi_agent_handshake.py
+│
+├─ deploy/                        # *lightweight* IaC & CI stubs
+│   ├─ Dockerfile                 # multistage build ↔ src/project_name/**
+│   ├─ docker-compose.yml         # local dev: api + streamlit + redis + vector-mock
+│   ├─ github/                    # GitHub Actions
+│   │   └─ workflows/
+│   │       └─ ci.yml
+│   └─ cloud/                     # placeholders only
+│       ├─ aws/ecs-taskdef.json
+│       ├─ gcp/cloudrun.yaml
+│       └─ azure/containerapp.bicep
+│
+├─ frontend/                      # *future* React/Next.js + Tailwind
+│   ├─ package.json
+│   ├─ tsconfig.json
+│   ├─ next.config.mjs
+│   ├─ tailwind.config.ts
+│   └─ src/
+│       └─ (React code lives here later)
+│
+├─ src/
+│   └─ project_name/
+│       ├─ __init__.py
+│       ├─ AI_README.md           # how Cursor should reason about this package
+│
+│       ├─ config/                # all runtime config objects (Pydantic)
+│       │   ├─ __init__.py
+│       │   ├─ base.py            # BaseSettings; env precedence
+│       │   ├─ model.py           # OpenAI model & cost caps
+│       │   └─ storage.py         # selects file/redis/postgres/vector
+│
+│       ├─ engine/                # domain logic (no I/O)
+│       │   ├─ __init__.py
+│       │   ├─ factory.py         # agent_factory()
+│       │   ├─ hooks.py           # DynamicHandoffHook + hook_factory()
+│       │   └─ runner.py          # runner_factory(); sync & streaming
+│
+│       ├─ tools/                 # OpenAI function tools
+│       │   ├─ __init__.py
+│       │   ├─ spawn.py           # spawn_agent() tool (<200 LOC)
+│       │   └─ web_search.py      # example extra tool
+│
+│       ├─ storage/               # persistence back-ends (pluggable)
+│       │   ├─ __init__.py
+│       │   ├─ base.py            # Registry & MemoryProvider protocols
+│       │   ├─ file_backend.py
+│       │   ├─ redis_backend.py
+│       │   ├─ supabase_backend.py
+│       │   └─ vector_backend.py  # Pinecone/Qdrant
+│
+│       ├─ tasks/                 # lightweight task runner (async, in-proc)
+│       │   ├─ __init__.py
+│       │   ├─ runner.py          # run_task(callback, *args)
+│       │   └─ sched.py           # simple interval scheduler; adapters → Celery/Arq later
+│
+│       ├─ plugins/               # first-class plug-in system
+│       │   ├─ __init__.py
+│       │   ├─ registry.py        # discover_plugins(), load_entrypoints()
+│       │   └─ example_plugin/
+│       │       ├─ __init__.py
+│       │       └─ plugin.py      # implements PluginProtocol
+│
+│       ├─ ui/                    # Python-native user interfaces
+│       │   ├─ __init__.py
+│       │   ├─ api/               # FastAPI for production
+│       │   │   ├─ __init__.py
+│       │   │   ├─ fastapi_app.py
+│       │   │   └─ routers/
+│       │   │       ├─ agents.py
+│       │   │       └─ health.py
+│       │   └─ streamlit_app/     # rapid-dev dashboard
+│       │       └─ main.py
+│       │
+│       └─ util/                  # cross-cutting helpers
+│           ├─ __init__.py
+│           ├─ logging.py
+│           └─ typing.py
+│
+└─ tests/
+    ├─ conftest.py                # shared fixtures
+    ├─ unit/
+    │   ├─ test_factory.py
+    │   └─ test_tools.py
+    ├─ integration/
+    │   └─ test_agent_flow.py
+    └─ e2e/
+        └─ test_api_handoff.py

@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "PRISMAgent"
+version = "0.1.0"
+description = "An advanced agent framework"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "PRISM Team"}
+]
+
+[project.optional-dependencies]
+redis = ["redis>=4.0.0"]
+supabase = ["supabase>=0.0.1"]
+pinecone = ["pinecone-client>=2.0.0"]
+
+[tool.ruff]
+select = ["E", "F", "I"]
+line-length = 100
+target-version = "py38"
+
+[tool.black]
+line-length = 100
+target-version = ["py38"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true 
