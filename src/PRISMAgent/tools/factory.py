@@ -20,7 +20,7 @@ from pydantic import create_model, BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["tool_factory"]
+__all__ = ["tool_factory", "list_available_tools"]
 
 
 def _get_param_info(func: Callable) -> Dict[str, Any]:
@@ -65,7 +65,7 @@ def tool_factory(
         func: The function to convert into a tool.
         name: Optional override for the tool's name (defaults to function name).
         description: Optional override for the tool's description 
-                    (defaults to function docstring).
+                (defaults to function docstring).
     
     Returns:
         The wrapped function that can be used as a tool by agents.
