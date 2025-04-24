@@ -1,68 +1,75 @@
-"""Spawn agent tool for PRISMAgent."""
+"""
+PRISMAgent.tools.spawn
+---------------------
 
-import logging
-from typing import Dict, Any, Optional, List, Literal
+This module provides tools for spawning new agents.
+"""
 
-from agents import function_tool
-from ..engine.factory import agent_factory
-from ..engine.runner import runner_factory
-from ..config import OPENAI_API_KEY
+from __future__ import annotations
 
-logger = logging.getLogger(__name__)
+from typing import Callable, Dict, List, Optional, Union
 
-@function_tool
-async def spawn_agent(
-    agent_type: str,
-    system_prompt: str,
-    task: str,
-    complexity: Literal["auto", "basic", "advanced"] = "auto",
-    model: Optional[str] = None,
-) -> Dict[str, Any]:
-    """Create a new agent and execute a task.
+from agents import Agent
+from .factory import tool_factory
+from PRISMAgent.engine.factory import agent_factory
+
+
+@tool_factory
+def spawn_agent(
+    name: str,
+    instructions: str,
+    tools: Optional[List[str]] = None,
+) -> Dict[str, str]:
+    """
+    Create a new agent with the specified parameters.
+    
+    This tool allows one agent to create another agent with different
+    capabilities or specialties.
     
     Args:
-        agent_type: Type of agent to create (e.g., assistant, coder, researcher)
-        system_prompt: System prompt for the new agent
-        task: Task for the new agent to perform
-        complexity: Complexity level for the task ("auto", "basic", "advanced")
-        model: Optional explicit model override
-        
+        name: Unique identifier for the new agent.
+        instructions: System prompt/instructions for the agent.
+        tools: Optional list of tool names to provide to the agent.
+    
     Returns:
-        Dict containing the response from the agent
+        A dictionary with details about the created agent.
     """
-    # Check if API key is available
-    if not OPENAI_API_KEY:
-        logger.warning("OpenAI API key not set in environment or .env file")
-        return {"response": "Error: OpenAI API key not configured. Please set OPENAI_API_KEY in environment or .env file."}
-        
-    # Create a specialized system prompt based on the agent type
-    if agent_type == "coder":
-        full_system_prompt = f"You are a specialized coding assistant. {system_prompt}"
-    elif agent_type == "researcher":
-        full_system_prompt = f"You are a specialized research agent. {system_prompt}"
-    else:
-        full_system_prompt = system_prompt
+    # Import here to avoid circular imports
+    from PRISMAgent.tools import list_available_tools
     
-    # Derive logical task type from agent_type
-    task_type = "code" if agent_type == "coder" else "chat"
+    # Validate tool names if provided
+    available_tools = list_available_tools()
+    actual_tools = []
     
-    # Create an agent using the factory
-    agent_name = f"{agent_type}_{hash(system_prompt)}"
+    if tools:
+        for tool_name in tools:
+            if tool_name not in available_tools:
+                raise ValueError(f"Invalid tool name: {tool_name}")
+                
+            # Import the actual tool dynamically
+            # This is a simplified version - in reality, you'd need
+            # to better handle tool resolution
+            from importlib import import_module
+            
+            try:
+                # Assume tools are in modules with the same name
+                module = import_module(f"PRISMAgent.tools.{tool_name}")
+                if hasattr(module, tool_name):
+                    tool = getattr(module, tool_name)
+                    actual_tools.append(tool)
+            except ImportError:
+                raise ValueError(f"Could not load tool module for: {tool_name}")
     
-    # Create an agent with no tools to prevent infinite recursion
+    # Create the agent via the factory function
     agent = agent_factory(
-        name=agent_name,
-        instructions=full_system_prompt,
-        tools=None,  # No tools for spawned agents to prevent infinite recursion
-        task=task_type,
-        complexity=complexity,
-        model=model,
+        name=name,
+        instructions=instructions,
+        tools=actual_tools if actual_tools else None,
     )
     
-    # Create a non-streaming runner
-    runner = runner_factory(stream=False)
-    
-    # Run the agent with the task
-    response = runner.run(agent, task)
-    
-    return {"response": response}
+    # Return information about the created agent
+    return {
+        "id": agent.name,
+        "status": "created",
+        "tools": [t.__prism_name__ for t in actual_tools] if actual_tools else [],
+    }
