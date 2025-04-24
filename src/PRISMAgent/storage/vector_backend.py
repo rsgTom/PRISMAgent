@@ -13,7 +13,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Optional, Union, Tuple
 
 from ..config import env
-
+from agents import Agent
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -346,6 +346,9 @@ class VectorStore:
         else:
             raise ValueError(f"Unsupported vector provider: {provider}")
         
+        # Initialize agent storage
+        self._agents = {}
+        
         logger.info(f"Initialized vector store with {provider} backend")
     
     def upsert(self, id: str, vector: List[float], metadata: Optional[Dict[str, Any]] = None) -> bool:
@@ -400,3 +403,47 @@ class VectorStore:
             Boolean indicating success
         """
         return self.backend.delete(id)
+    
+    def exists(self, name: str) -> bool:
+        """
+        Check if an agent with the given name exists.
+        
+        Args:
+            name: Agent name to check
+            
+        Returns:
+            True if the agent exists, False otherwise
+        """
+        return name in self._agents
+    
+    def get_agent(self, name: str) -> Optional[Agent]:
+        """
+        Get an agent by name. Returns None if not found.
+        
+        This is a safer alternative to get() that doesn't raise KeyError.
+        
+        Args:
+            name: Agent name to retrieve
+            
+        Returns:
+            Agent object if found, None otherwise
+        """
+        return self._agents.get(name)
+    
+    def register(self, agent: Agent) -> None:
+        """
+        Register an agent in the registry.
+        
+        Args:
+            agent: Agent object to register
+        """
+        self._agents[agent.name] = agent
+    
+    def list_agents(self) -> List[str]:
+        """
+        List all agent names in the registry.
+        
+        Returns:
+            List of agent names
+        """
+        return list(self._agents.keys())
