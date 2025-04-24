@@ -22,4 +22,4 @@ PRISMAgent is an advanced agent framework designed for flexible, multi-agent wor
 
 ## Getting Started
 
-See the [Quick Start](https://github.com/PRISMAgent#quick-start) section in the GitHub repository README for installation instructions and basic usage examples. 
+See the [Quick Start](https://github.com/PRISMAgent#quick-start) section in the GitHub repository README for installation instructions and basic usage examples.

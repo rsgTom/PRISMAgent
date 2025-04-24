@@ -11,7 +11,10 @@
 3. **ALWAYS** add/adjust unit tests for every public function or class you touch.  
 4. Construct **agents, tools, registries, runners, memory providers** through the *factories*—*never* via `Agent(...)` directly.  
 5. Keep domain logic in **engine/**; push I/O or frameworks to **storage/** or **ui/**.  
-6. Append uncertainties under **Open Questions** instead of guessing.
+6. Append uncertainties to **open_questions.txt** instead of guessing. Create the file if doesn't exist.
+7. **Avoid duplicate and orphan code**. Check whether a function or file with the same scope exists under a similar name before creating it.
+8. **Maintain** accurate documentation by updating existing .md files or creating new documentation in /docs when necessary.
+9. Create, update, and maintain an accurate **directory_structure.txt** after making changes.
 
 ---
 
@@ -111,7 +114,7 @@ Plugins live in `project_name/plugins/` **or** expose an entry-point group `proj
 
 ## 7 · Open Questions
 
-*(append below; keep chronological)*
+*(append below; keep chronological).*
 
 ---
 
@@ -124,5 +127,6 @@ Plugins live in `project_name/plugins/` **or** expose an entry-point group `proj
 ---
 
 ### Remember  
+>
 > **Small, typed, tested PRs keep humans happy and the CI green.**  
 > If uncertain, leave a note in *Open Questions* instead of guessing.

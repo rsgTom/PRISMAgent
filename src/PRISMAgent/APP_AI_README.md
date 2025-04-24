@@ -28,5 +28,5 @@ The PRISMAgent package follows a modular design with clear separation of concern
 - Use type hints consistently throughout the codebase
 - Follow the existing patterns for dependency injection
 - Keep modules focused on a single responsibility
-- Use protocols for interface definitions 
-- Add comprehensive docstrings for all public APIs 
+- Use protocols for interface definitions
+- Add comprehensive docstrings for all public APIs

@@ -1,4 +1,13 @@
-project_name/
+'''text
+This is an initial directory structure that will not reflect the 
+current or final project directory.
+
+AI_README: The current directory structure may deviate substantially 
+from this initial directory structure. Maintain an accurate directory
+tree by creating or updating 'directory_structure.txt' to reflect changes.
+'''
+
+PRISMAgent/
 ├─ pyproject.toml                 # deps, ruff/black/mypy, optional extras=[redis,supabase,pinecone]
 ├─ README.md
 ├─ AI_README.md                   # root-level design overview for Cursor

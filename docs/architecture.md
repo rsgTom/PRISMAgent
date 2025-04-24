@@ -4,7 +4,7 @@ PRISMAgent follows a clean architecture approach, with clear separation between 
 
 ## Key Components
 
-```
+```text
 PRISMAgent/
 │
 ├─ config/           # All runtime config objects (Pydantic)
@@ -79,4 +79,4 @@ Dual user interface approach:
 5. Storage module persists agent state
 6. UI layer provides access to the system
 7. Tasks module handles async operations
-8. Plugins extend functionality as needed 
+8. Plugins extend functionality as needed
