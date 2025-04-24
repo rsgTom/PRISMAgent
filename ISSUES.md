@@ -11,6 +11,7 @@ This document provides a detailed inventory of known issues in the PRISMAgent co
   - `src/PRISMAgent/tools/__init__.py` (should export the function)
 - **Impact**: Prevents tool creation, breaking core functionality
 - **Solution**: Create a new file `src/PRISMAgent/tools/factory.py` that implements the tool factory
+- **Status**: FIXED in PR #1 - Added proper tool_factory implementation and exports
 
 ### C2: Parameter Mismatches
 - **Description**: Function signatures don't match their call sites
@@ -19,6 +20,7 @@ This document provides a detailed inventory of known issues in the PRISMAgent co
   - `src/PRISMAgent/ui/streamlit_app/main.py` (passes mismatched parameters)
 - **Impact**: Runtime errors or incorrect behavior
 - **Solution**: Audit all function calls and align signatures
+- **Status**: FIXED in PR - Added proper parameter handling in spawn_agent to accept both string tool names and callable tools
 
 ### C3: Incomplete Storage Registry
 - **Description**: Storage registry is incomplete and references backends that don't exist
@@ -123,8 +125,8 @@ This document provides a detailed inventory of known issues in the PRISMAgent co
 
 | ID | Assigned To | Status | Started | Completed | Notes |
 |----|-------------|--------|---------|-----------|-------|
-| C1 | | Not Started | | | |
-| C2 | | Not Started | | | |
+| C1 | | Completed | | ✅ | Fixed in PR #1 |
+| C2 | | Completed | | ✅ | Fixed parameter handling in spawn_agent |
 | C3 | | Not Started | | | |
 | C4 | | Not Started | | | |
 | M1 | | Not Started | | | |
