@@ -78,4 +78,4 @@ def registry_factory(registry_type: Optional[str] = None, **kwargs) -> BaseRegis
     return _REGISTRY
 
 
-__all__ = ["registry_factory", "BaseRegistry", "RegistryProtocol", "InMemoryRegistry"] 
+__all__ = ["registry_factory", "BaseRegistry", "RegistryProtocol", "InMemoryRegistry", "VectorStore"] 

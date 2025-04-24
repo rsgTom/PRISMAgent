@@ -82,13 +82,42 @@ REDIS_URL=redis://localhost:6379/0
 STORAGE_BACKEND=supabase
 SUPABASE_URL=https://xyz.supabase.co
 SUPABASE_KEY=your_service_key
-# Pinecone / Qdrant
-STORAGE_BACKEND=vector
-VECTOR_PROVIDER=pinecone
-PINECONE_API_KEY=...
+# Vector Storage (for embeddings)
+VECTOR_PROVIDER=memory     # In-memory (default for development)
+VECTOR_PROVIDER=redis      # Redis with RediSearch
+VECTOR_PROVIDER=redisvl    # Redis Vector Library
+VECTOR_PROVIDER=pinecone   # Pinecone
+PINECONE_API_KEY=your_api_key
+PINECONE_INDEX=your_index
 ```
 
 The application swaps implementations at runtime—no code changes.
+
+### Vector Storage
+
+PRISMAgent supports multiple vector database backends for storing and retrieving embeddings:
+
+- **In-memory**: Simple in-memory store for development and testing
+- **Redis**: Uses Redis with RediSearch for vector operations
+- **RedisVL**: Uses Redis Vector Library for advanced vector capabilities
+- **Pinecone**: Uses Pinecone cloud vector database service
+
+Example usage:
+
+```python
+from PRISMAgent.storage import VectorStore
+
+# Create a vector store with the configured backend
+vector_store = VectorStore()
+
+# Store a vector with metadata
+vector_store.upsert("doc-1", embedding_vector, {"text": "Sample document"})
+
+# Query for similar vectors
+results = vector_store.query(query_vector, k=5)
+```
+
+See the [Vector Storage Documentation](docs/api/storage/vector_storage.md) and [examples](examples/) for more details.
 
 ---
 
@@ -206,7 +235,7 @@ Mark slow or external tests with `@pytest.mark.integration` or `@pytest.mark.e2e
 ## 10 · Roadmap
 
 - [ ] Auth + rate-limit middleware  
-- [ ] Vector memory RAG integration  
+- [x] Vector memory RAG integration  
 - [ ] React/Tailwind front-end (Next.js)  
 - [ ] Celery/Arq driver in `tasks/`  
 - [ ] Helm chart & Terraform modules  

@@ -13,27 +13,65 @@ import os
 import logging
 from pathlib import Path
 from typing import Any, Dict, Optional
-
-# Try to import dotenv, but don't fail if it's not installed
-try:
-    from dotenv import load_dotenv
-    DOTENV_AVAILABLE = True
-except ImportError:
-    DOTENV_AVAILABLE = False
+from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
-# Load environment variables from .env file if available
-if DOTENV_AVAILABLE:
-    env_path = Path('.') / '.env'
-    load_result = load_dotenv(dotenv_path=env_path)
-    if load_result:
-        logger.info("Loaded environment variables from .env file")
-    else:
-        logger.info("No .env file found or unable to load it")
-else:
-    logger.info("python-dotenv not installed. Skipping .env file loading.")
+# Load environment variables from .env file if it exists
+load_dotenv()
 
+# General configuration
+DEBUG = os.getenv('DEBUG', 'false').lower() in ('true', '1', 't')
+LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO').upper()
+ENV = os.getenv('ENV', 'development')
+
+# API configuration
+API_HOST = os.getenv('API_HOST', '0.0.0.0')
+API_PORT = int(os.getenv('API_PORT', '8000'))
+API_PREFIX = os.getenv('API_PREFIX', '/api/v1')
+
+# Database configuration
+DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///prism_agent.db')
+
+# Vector storage configuration
+VECTOR_PROVIDER = os.getenv('VECTOR_PROVIDER', 'memory')
+PINECONE_API_KEY = os.getenv('PINECONE_API_KEY')
+PINECONE_INDEX = os.getenv('PINECONE_INDEX', 'prism-agent')
+EMBED_DIM = int(os.getenv('EMBED_DIM', '1536'))
+
+# LLM configuration
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+DEFAULT_MODEL = os.getenv('DEFAULT_MODEL', 'gpt-4o')
+
+# Auth configuration
+SECRET_KEY = os.getenv('SECRET_KEY', 'supersecretkey')
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv('ACCESS_TOKEN_EXPIRE_MINUTES', '30'))
+ALGORITHM = os.getenv('ALGORITHM', 'HS256')
+
+# Supabase configuration (optional)
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+SUPABASE_JWT_SECRET = os.getenv('SUPABASE_JWT_SECRET')
+
+# Storage paths
+STORAGE_PATH = os.getenv('STORAGE_PATH', './data')
+TEMP_PATH = os.getenv('TEMP_PATH', './tmp')
+
+def is_production() -> bool:
+    """Check if environment is production."""
+    return ENV.lower() == 'production'
+
+def is_development() -> bool:
+    """Check if environment is development."""
+    return ENV.lower() == 'development'
+
+def is_testing() -> bool:
+    """Check if environment is testing."""
+    return ENV.lower() == 'testing'
+
+def get_optional_setting(key: str) -> Optional[str]:
+    """Get an optional setting, returning None if not set."""
+    return os.getenv(key)
 
 def get_env(key: str, default: Any = None) -> Any:
     """
@@ -141,12 +179,9 @@ def get_all_env_vars() -> Dict[str, str]:
 
 
 # Module-level constants for commonly used environment variables
-OPENAI_API_KEY = get_env("OPENAI_API_KEY")
-DEFAULT_MODEL = get_env("DEFAULT_MODEL", "o3-mini")
 MODEL_TEMPERATURE = get_env_float("MODEL_TEMPERATURE", 0.7)
 MODEL_MAX_TOKENS = get_env_int("MODEL_MAX_TOKENS", 1000)
 STORAGE_BACKEND = get_env("STORAGE_BACKEND", "memory")
-STORAGE_PATH = get_env("STORAGE_PATH", "./data")
 LOG_LEVEL = get_env("LOG_LEVEL", "INFO")
 
 __all__ = [
@@ -162,4 +197,8 @@ __all__ = [
     "STORAGE_BACKEND",
     "STORAGE_PATH",
     "LOG_LEVEL",
+    "is_production",
+    "is_development",
+    "is_testing",
+    "get_optional_setting",
 ] 

@@ -21,6 +21,7 @@ redis[hiredis]>=5.0.0
 [vector]
 pinecone-client>=3.0
 qdrant-client>=1.8
+redisvl>=0.5.2
 
 [viz]
 openai-agents[viz]>=0.0.12

@@ -46,8 +46,9 @@ dev = [
 # Storage back‑ends
 redis = ["redis[hiredis]>=5.0.0"]
 vector = [
-  "pinecone-client>=3.0",
+  "pinecone>=3.0",
   "qdrant-client>=1.8",
+  "redisvl>=0.5.2",
 ]
 # Agents SDK extras (install with e.g. `pip install 'prismagent[viz]'`)
 voice = ["openai-agents[voice]>=0.0.12"]

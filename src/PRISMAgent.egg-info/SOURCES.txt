@@ -18,8 +18,15 @@ src/PRISMAgent/engine/runner.py
 src/PRISMAgent/storage/__init__.py
 src/PRISMAgent/storage/base.py
 src/PRISMAgent/storage/file_backend.py
+src/PRISMAgent/storage/vector_backend.py
 src/PRISMAgent/tools/__init__.py
 src/PRISMAgent/tools/spawn.py
+src/PRISMAgent/ui/api/fastapi_app.py
+src/PRISMAgent/ui/api/routers/__init__.py
+src/PRISMAgent/ui/api/routers/agents.py
+src/PRISMAgent/ui/api/routers/chat.py
+src/PRISMAgent/ui/api/routers/tools.py
+src/PRISMAgent/ui/streamlit_app/main.py
 src/backend/api/index.py
 src/backend/services/agent_service.py
 src/middleware/auth/jwt_auth.py
