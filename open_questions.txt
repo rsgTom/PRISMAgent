@@ -1,0 +1,55 @@
+# PRISMAgent Open Questions
+
+This file tracks design uncertainties and open questions that arise during development.
+Please add new questions to the bottom of the file with a date stamp.
+
+## Engine Module
+
+[2025-04-24] Should tool_factory support multiple function signatures (e.g., sync and async versions)?
+[2025-04-24] What's the intended behavior when agent_factory is called with task, complexity, and model parameters?
+[2025-04-24] How should we handle errors in agent creation versus errors in agent execution?
+
+## Storage Module
+
+[2025-04-24] Should storage backends be fully async or is a mixed approach acceptable?
+[2025-04-24] How should we handle migrations between different storage backends?
+[2025-04-24] What's the intended relationship between vector storage and registry storage?
+[2025-04-24] Should we implement full CRUD for all entities or just what's needed for agent operations?
+
+## Tools Module
+
+[2025-04-24] Should tools be auto-discovered at runtime or explicitly registered?
+[2025-04-24] How should we handle tool versioning and compatibility?
+[2025-04-24] Is there a need for tool categories or namespaces?
+
+## UI Module
+
+[2025-04-24] What's the intended division between Streamlit and FastAPI functionality?
+[2025-04-24] Should we focus on improving Streamlit or building out the FastAPI endpoints?
+[2025-04-24] How much of the frontend React work should be prioritized versus backend stability?
+
+## Configuration
+
+[2025-04-24] How should we handle environment-specific configuration (dev/test/prod)?
+[2025-04-24] Should we implement hot reloading of configuration?
+[2025-04-24] What's the strategy for secrets management beyond environment variables?
+
+## Testing
+
+[2025-04-24] How should we mock the OpenAI API in tests?
+[2025-04-24] What's the target test coverage percentage?
+[2025-04-24] Should we implement property-based testing for core components?
+
+## Dependencies
+
+[2025-04-24] What's our strategy for handling OpenAI Agents SDK updates/changes?
+[2025-04-24] Should we consider alternatives to the OpenAI Agents SDK?
+[2025-04-24] What's our policy on third-party dependencies versus in-house implementations?
+
+## Scalability
+
+[2025-04-24] What are the performance bottlenecks in the current design?
+[2025-04-24] How should we handle rate limiting for API calls?
+[2025-04-24] What's our strategy for handling large volumes of agents and chat history?
+
+# Add new questions below this line with date stamps
