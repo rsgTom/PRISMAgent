@@ -57,4 +57,4 @@ runner = runner_factory(streaming=True)
 response = await runner.run(
     agent=agent,
     messages=[{"role": "user", "content": "What is the capital of France?"}],
-) 
+)

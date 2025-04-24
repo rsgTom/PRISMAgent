@@ -20,8 +20,28 @@ wheels/
 .installed.cfg
 *.egg
 
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.npm/
+.yarn/
+
+# Next.js
+.next/
+out/
+.vercel
+next-env.d.ts
+.swc/
+
 # Environment
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 .venv
 env/
 venv/
@@ -39,4 +59,8 @@ venv.bak/
 # Project specific
 data/
 logs/
-.DS_Store 
+.DS_Store
+.mcptools.txt
+
+# TypeScript
+*.tsbuildinfo

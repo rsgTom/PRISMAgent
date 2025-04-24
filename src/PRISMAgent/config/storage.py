@@ -1,7 +1,7 @@
 """Storage configuration for PRISMAgent."""
 
 from typing import Optional, Dict, Any, Literal
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, model_validator
 
 
 class FileStorageConfig(BaseModel):
@@ -101,33 +101,45 @@ class StorageConfig(BaseModel):
     supabase: Optional[SupabaseStorageConfig] = None
     vector: Optional[VectorStorageConfig] = None
     
-    @validator("file", always=True)
-    def validate_file_config(cls, v, values):
-        """Ensure file config is set when type is file."""
-        if values.get("type") == "file" and v is None:
-            return FileStorageConfig()
-        return v
-    
-    @validator("redis", always=True)
-    def validate_redis_config(cls, v, values):
-        """Ensure redis config is set when type is redis."""
-        if values.get("type") == "redis" and v is None:
-            # This will raise a validation error if REDIS_URL is not set
-            return RedisStorageConfig(url="")
-        return v
-    
-    @validator("supabase", always=True)
-    def validate_supabase_config(cls, v, values):
-        """Ensure supabase config is set when type is supabase."""
-        if values.get("type") == "supabase" and v is None:
-            # This will raise a validation error if SUPABASE_URL/KEY are not set
-            return SupabaseConfig(url="", key="")
-        return v
-    
-    @validator("vector", always=True)
-    def validate_vector_config(cls, v, values):
-        """Ensure vector config is set when type is vector."""
-        if values.get("type") == "vector" and v is None:
-            # This will raise a validation error if provider is not specified
-            return VectorStorageConfig(provider="pinecone")
-        return v 
+    @model_validator(mode='after')
+    def check_storage_config_consistency(self) -> 'StorageConfig':
+        """Ensure only the config corresponding to 'type' is set and validated."""
+        if self.type == "file":
+            if self.file is None:
+                # Initialize with defaults if missing; validation happens automatically
+                self.file = FileStorageConfig()
+            self.redis = None
+            self.supabase = None
+            self.vector = None
+        elif self.type == "redis":
+            if self.redis is None:
+                # If type is redis, the redis field should have been populated and validated.
+                # If it's None here, it means required fields (like URL env var) might be missing.
+                # Pydantic's earlier validation should ideally catch this.
+                # We force validation again or raise error if it's None.
+                try:
+                    self.redis = RedisStorageConfig()
+                except ValueError as e:
+                    raise ValueError("Redis config is required and validation failed when type is 'redis'. Check REDIS_URL env var.") from e
+            self.file = None
+            self.supabase = None
+            self.vector = None
+        elif self.type == "supabase":
+            if self.supabase is None:
+                 try:
+                    self.supabase = SupabaseStorageConfig()
+                 except ValueError as e:
+                    raise ValueError("Supabase config is required and validation failed when type is 'supabase'. Check SUPABASE_URL/KEY env vars.") from e
+            self.file = None
+            self.redis = None
+            self.vector = None
+        elif self.type == "vector":
+            if self.vector is None:
+                 try:
+                    self.vector = VectorStorageConfig()
+                 except ValueError as e:
+                    raise ValueError("Vector config is required and validation failed when type is 'vector'. Check VECTOR_PROVIDER and related env vars.") from e
+            self.file = None
+            self.redis = None
+            self.supabase = None
+        return self 

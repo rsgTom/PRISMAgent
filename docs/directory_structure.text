@@ -1,0 +1,50 @@
+PRISMAgent/
+├── .venv/               # Virtual environment (managed by Python)
+├── deploy/
+│   ├── cloud/
+│   │   ├── aws/
+│   │   ├── azure/
+│   │   └── gcp/
+│   └── github/
+│       └── workflows/
+├── docs/
+│   └── api/
+│       ├── engine/
+│       ├── storage/
+│       └── tools/
+├── examples/
+├── frontend/
+│   └── src/
+├── src/
+│   ├── backend/
+│   │   ├── api/
+│   │   └── services/
+│   ├── middleware/
+│   │   └── auth/
+│   ├── PRISMAgent/
+│   │   ├── config/
+│   │   ├── engine/
+│   │   ├── plugins/
+│   │   │   └── example_plugin/
+│   │   ├── storage/
+│   │   ├── tasks/
+│   │   ├── tools/
+│   │   ├── ui/
+│   │   │   ├── api/
+│   │   │   │   └── routers/
+│   │   │   └── streamlit_app/
+│   │   └── util/
+│   └── PRISMAgent.egg-info/  # Build metadata
+├── tests/
+│   ├── e2e/
+│   ├── integration/
+│   └── unit/
+├── .DS_Store            # macOS system file
+├── .env.example         # Example environment variables
+├── .gitignore           # Git ignore rules
+├── .pre-commit-config.yaml # Pre-commit hook configuration
+├── AI_README.md         # Guidelines for AI collaborators
+├── git                  # Git directory (usually hidden)
+├── mkdocs.yml           # MkDocs configuration
+├── pyproject.toml       # Project metadata and dependencies
+└── README.md            # Project README 

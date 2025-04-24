@@ -126,6 +126,7 @@ See `.env.example` for a complete list of available configuration options.
 ## 6 · Adding your own pieces
 
 ### ➤ New tool
+
 ```python
 # src/project_name/tools/greet.py
 from agents import function_tool
@@ -134,9 +135,11 @@ from agents import function_tool
 def greet(name: str) -> str:
     return f"Hello, {name}!"
 ```
+
 The `agent_factory` auto-discovers it (or list it explicitly).
 
 ### ➤ New plug-in
+
 ```python
 # my_plugin/__init__.py
 from project_name.plugins.registry import register_plugin
@@ -146,9 +149,11 @@ class JokePlugin:
     name = "joke_plugin"
     tools = ["tell_joke"]
 ```
+
 Copy into `plugins/` or `pip install my_plugin`; it shows up next launch.
 
 ### ➤ Background task
+
 ```python
 from project_name.tasks.runner import run_task
 
@@ -182,6 +187,7 @@ tests/
 ├─ integration/   # hits Redis / vector mocks
 └─ e2e/           # spins Docker Compose, calls live REST endpoints
 ```
+
 Run all in CI (`pytest -m "not slow"`).  
 Mark slow or external tests with `@pytest.mark.integration` or `@pytest.mark.e2e`.
 

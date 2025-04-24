@@ -110,22 +110,22 @@ class TestFileRegistry:
     
     def test_registry_init(self, temp_dir):
         """Test registry initialization."""
-        registry = FileRegistry(storage_path=temp_dir)
+        registry = InMemoryRegistry(storage_path=temp_dir)
         assert registry.storage_path == Path(temp_dir)
         assert registry.data == {}
         
     def test_load_save(self, temp_dir):
         """Test loading and saving data."""
-        registry = FileRegistry(storage_path=temp_dir)
+        registry = InMemoryRegistry(storage_path=temp_dir)
         registry.set("test_key", "test_value")
         
         # Create a new registry instance to test loading
-        registry2 = FileRegistry(storage_path=temp_dir)
+        registry2 = InMemoryRegistry(storage_path=temp_dir)
         assert registry2.get("test_key") == "test_value"
         
     def test_set_get(self, temp_dir):
         """Test setting and getting values."""
-        registry = FileRegistry(storage_path=temp_dir)
+        registry = InMemoryRegistry(storage_path=temp_dir)
         registry.set("test_key", "test_value")
         assert registry.get("test_key") == "test_value"
         
@@ -136,7 +136,7 @@ class TestFileRegistry:
         
     def test_delete(self, temp_dir):
         """Test deleting a key."""
-        registry = FileRegistry(storage_path=temp_dir)
+        registry = InMemoryRegistry(storage_path=temp_dir)
         registry.set("test_key", "test_value")
         registry.delete("test_key")
         assert registry.get("test_key") is None
@@ -146,7 +146,7 @@ class TestFileRegistry:
         
     def test_list_keys(self, temp_dir):
         """Test listing keys."""
-        registry = FileRegistry(storage_path=temp_dir)
+        registry = InMemoryRegistry(storage_path=temp_dir)
         registry.set("key1", "value1")
         registry.set("key2", "value2")
         keys = registry.list_keys()
@@ -154,7 +154,7 @@ class TestFileRegistry:
         
     def test_clear(self, temp_dir):
         """Test clearing the registry."""
-        registry = FileRegistry(storage_path=temp_dir)
+        registry = InMemoryRegistry(storage_path=temp_dir)
         registry.set("key1", "value1")
         registry.set("key2", "value2")
         registry.clear()
@@ -175,7 +175,7 @@ class TestRegistryFactory:
     def test_factory_file(self, tmp_path):
         """Test creating a file registry."""
         registry = registry_factory(registry_type="file", storage_path=str(tmp_path))
-        assert isinstance(registry, FileRegistry)
+        assert isinstance(registry, InMemoryRegistry)
         assert registry.storage_path == tmp_path
         
     def test_factory_default(self):
@@ -186,4 +186,4 @@ class TestRegistryFactory:
     def test_factory_invalid(self):
         """Test an invalid registry type."""
         with pytest.raises(ValueError):
-            registry_factory(registry_type="invalid") 
+            registry_factory(registry_type="invalid")

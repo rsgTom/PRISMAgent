@@ -179,4 +179,4 @@ storage = Registry.create(
     provider_type="redis",
     url="redis://localhost:6379/0"
 )
-``` 
+```

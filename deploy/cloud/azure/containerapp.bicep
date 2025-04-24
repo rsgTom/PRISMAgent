@@ -74,7 +74,7 @@ resource apiContainerApp 'Microsoft.App/containerApps@2022-10-01' = {
           image: '${containerRegistryUrl}/${apiImageName}:latest'
           name: 'prism-agent-api'
           resources: {
-            cpu: '1.0'
+            cpu: 1
             memory: '2Gi'
           }
           env: [

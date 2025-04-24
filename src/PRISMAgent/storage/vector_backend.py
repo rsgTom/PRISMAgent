@@ -4,12 +4,12 @@ import os, json, numpy as np
 from typing import List, Dict, Tuple
 
 _BACKEND = os.getenv("VECTOR_PROVIDER", "pinecone")  # "pinecone" or "redis"
-_EMBED_DIM = int(os.getenv("EMBED_DIM", 512))
+_EMBED_DIM = int(os.getenv("EMBED_DIM", 1536))
 
 if _BACKEND == "pinecone":
     import pinecone
     pinecone.init(api_key=os.getenv("PINECONE_API_KEY"),
-                  environment=os.getenv("PINECONE_ENV", "us-west-1"))
+                  environment=os.getenv("PINECONE_ENV", "us-east-1"))
     _index = pinecone.Index(os.getenv("PINECONE_INDEX", "prisma-memory"))
 
     def _upsert(i, v, m): _index.upsert([{"id": i, "values": v, "metadata": m}])
