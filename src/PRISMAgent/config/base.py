@@ -6,6 +6,7 @@ Base settings and configuration for the PRISMAgent package.
 """
 
 from typing import Any, Dict, Optional
+from . import env
 
 
 class BaseSettings:
@@ -13,10 +14,10 @@ class BaseSettings:
     
     def __init__(
         self,
-        api_key: str = "mock-api-key",
-        model_name: str = "gpt-3.5-turbo",
-        max_tokens: int = 1000,
-        temperature: float = 0.7,
+        api_key: str = None,
+        model_name: str = None,
+        max_tokens: int = None,
+        temperature: float = None,
         **kwargs: Any,
     ):
         """
@@ -24,21 +25,21 @@ class BaseSettings:
         
         Parameters
         ----------
-        api_key : str
-            API key for OpenAI
-        model_name : str
-            Model name to use
-        max_tokens : int
-            Maximum tokens to generate
-        temperature : float
-            Temperature for generation
+        api_key : str, optional
+            API key for OpenAI, defaults to env value
+        model_name : str, optional
+            Model name to use, defaults to env value
+        max_tokens : int, optional
+            Maximum tokens to generate, defaults to env value
+        temperature : float, optional
+            Temperature for generation, defaults to env value
         **kwargs : Any
             Additional keyword arguments
         """
-        self.api_key = api_key
-        self.model_name = model_name
-        self.max_tokens = max_tokens
-        self.temperature = temperature
+        self.api_key = api_key or env.OPENAI_API_KEY
+        self.model_name = model_name or env.DEFAULT_MODEL
+        self.max_tokens = max_tokens or env.MODEL_MAX_TOKENS
+        self.temperature = temperature or env.MODEL_TEMPERATURE
         self._extra_settings = kwargs
         
     def get(self, key: str, default: Any = None) -> Any:

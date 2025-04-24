@@ -2,37 +2,112 @@
 PRISMAgent.engine.hooks
 -----------------------
 
-Reusable `AgentHooks` implementations (each <200 LOC).
+Reusable AgentHooks implementations **plus** two runtime-registered
+memory hooks that persist step summaries to a vector store (Pinecone
+or RedisVector) and retrieve the top-k related memories before each
+planning cycle.
+
+• <200 LOC  • no synchronous network calls in engine layer
 """
 
 from __future__ import annotations
 
-from typing import List
+import os
+from typing import Any, Dict, List
 
-from local_agents import Agent, AgentHooks, RunContextWrapper, Tool
+from agents import Agent, AgentHooks, RunContextWrapper, Tool
+from openai import OpenAI
+
 from PRISMAgent.storage import registry_factory
 
-_REGISTRY = registry_factory()  # singleton
+# --------------------------------------------------------------------------- #
+# 0 · Registry singleton (unchanged)                                          #
+# --------------------------------------------------------------------------- #
+_REGISTRY = registry_factory()  # falls back to InMemory if env missing
+
 
 # --------------------------------------------------------------------------- #
-# Dynamic hand-off after spawn                                                #
+# 1 · Existing hook: dynamic hand-off when an already-registered agent is     #
+#    spawned.                                                                 #
 # --------------------------------------------------------------------------- #
 class DynamicHandoffHook(AgentHooks):
-    async def on_tool_end(        # SDK-prescribed signature
+    """Attach an existing agent instance instead of spawning duplicates."""
+
+    def after_tool_call(
         self,
-        context: RunContextWrapper,
         agent: Agent,
+        context: RunContextWrapper,
         tool: Tool,
         result: str,
     ) -> None:
         if tool.name == "spawn_agent" and _REGISTRY.exists(result):
             agent.handoffs.append(_REGISTRY.get(result))
 
+
 # --------------------------------------------------------------------------- #
-# Simple factory so __init__.py export still works                            #
+# 2 · NEW: long-term memory hooks                                             #
+# --------------------------------------------------------------------------- #
+# pick vector backend via env:  STORAGE_BACKEND=vector  VECTOR_PROVIDER=pinecone|redis
+if os.getenv("STORAGE_BACKEND", "memory") == "vector":
+    _MEM = registry_factory("vector")  # Pinecone or RedisVector behind one API
+else:
+    _MEM = None  # keep working even if vector store not configured
+
+_OPENAI = OpenAI()
+_EMBED_MODEL = os.getenv("EMBED_MODEL", "text-embedding-3-small")
+
+
+def _embed(text: str) -> List[float]:
+    """Embed text with OpenAI; returns 512-d float list."""
+    resp = _OPENAI.embeddings.create(model=_EMBED_MODEL, input=text)
+    return resp.data[0].embedding
+
+
+def after_step(step_summary: str, meta: Dict[str, Any]) -> None:
+    """
+    Persist a short summary + metadata after every completed agent step.
+    Called automatically by the runner’s `after_step` hook.
+    """
+    if _MEM is None:
+        return
+    _MEM.upsert(meta["id"], _embed(step_summary), meta)
+
+
+def before_plan(user_query: str, k: int = 3):
+    """
+    Retrieve the top-k memories most relevant to the upcoming planning
+    query.  The runner injects these summaries into the system prompt.
+    """
+    if _MEM is None:
+        return []
+    return _MEM.query(_embed(user_query), k=k)
+
+
+# --------------------------------------------------------------------------- #
+# 3 · Auto-register the new hooks with the runner (if it exists).             #
+# --------------------------------------------------------------------------- #
+try:
+    from PRISMAgent.engine.runner import runner_factory
+
+    _RUNNER = runner_factory()
+    _RUNNER.add_after_step(after_step)
+    _RUNNER.add_before_plan(before_plan)
+except ImportError:
+    # Runner not yet initialised (unit tests / static analysis)
+    pass
+
+
+# --------------------------------------------------------------------------- #
+# 4 · Factory helper (kept for backward compatibility)                        #
 # --------------------------------------------------------------------------- #
 def hook_factory(hook_cls: type[AgentHooks], **kwargs) -> AgentHooks:
-    """Return a new hook instance—kept only for backward compatibility."""
+    """Return a new hook instance—deprecated but still exported."""
     return hook_cls(**kwargs)
 
-__all__: List[str] = ["DynamicHandoffHook", "hook_factory"]
+
+__all__: List[str] = [
+    "DynamicHandoffHook",
+    "after_step",
+    "before_plan",
+    "hook_factory",
+]

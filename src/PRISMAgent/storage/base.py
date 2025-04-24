@@ -9,7 +9,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Dict, Protocol, runtime_checkable
 
-from local_agents import Agent
+from agents import Agent
 
 
 @runtime_checkable

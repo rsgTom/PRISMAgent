@@ -7,7 +7,7 @@ For production use, consider using Redis, Supabase, or other persistent backends
 """
 
 from typing import Dict, ClassVar
-from local_agents import Agent
+from agents import Agent
 from .base import BaseRegistry
 
 

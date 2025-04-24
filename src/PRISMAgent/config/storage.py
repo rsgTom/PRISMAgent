@@ -64,7 +64,7 @@ class VectorStorageConfig(BaseModel):
     api_key: Optional[str] = Field(
         None, 
         description="API key for the vector store", 
-        env="VECTOR_API_KEY"
+        env="PINECONE_API_KEY"
     )
     environment: Optional[str] = Field(
         None, 
@@ -79,7 +79,7 @@ class VectorStorageConfig(BaseModel):
         description="Namespace for vector storage"
     )
     dimensions: int = Field(
-        1536, 
+        512, 
         description="Dimensions for vector embeddings"
     )
     metric: Literal["cosine", "euclidean", "dotproduct"] = Field(

@@ -1,11 +1,14 @@
 """Spawn agent tool for PRISMAgent."""
 
+import logging
 from typing import Dict, Any, Optional, List, Literal
 
-from local_agents import function_tool
+from agents import function_tool
 from ..engine.factory import agent_factory
 from ..engine.runner import runner_factory
+from ..config import OPENAI_API_KEY
 
+logger = logging.getLogger(__name__)
 
 @function_tool
 async def spawn_agent(
@@ -27,6 +30,11 @@ async def spawn_agent(
     Returns:
         Dict containing the response from the agent
     """
+    # Check if API key is available
+    if not OPENAI_API_KEY:
+        logger.warning("OpenAI API key not set in environment or .env file")
+        return {"response": "Error: OpenAI API key not configured. Please set OPENAI_API_KEY in environment or .env file."}
+        
     # Create a specialized system prompt based on the agent type
     if agent_type == "coder":
         full_system_prompt = f"You are a specialized coding assistant. {system_prompt}"

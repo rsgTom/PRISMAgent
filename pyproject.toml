@@ -3,51 +3,84 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "PRISMAgent"
+name = "prismagent"
 version = "0.1.0"
-description = "An advanced multi-agent framework"
+description = "Modular, multi-agent framework with plug‑and‑play storage, tools, and UIs"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
-authors = [{name = "PRISM Team"}]
+authors = [
+  { name = "Thomas Bowman", email = "thomas@example.com" }
+]
+keywords = ["AI", "agents", "openai-agents", "multi-agent", "framework"]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Typing :: Typed",
+]
 
+# Core runtime deps
 dependencies = [
-  "openai>=1.14.0",
-  "openai-agents-python>=0.2.0",
-  "pydantic>=2.6.2",
+  "openai>=1.23.0",          # OpenAI Python client
+  "openai-agents>=0.0.12",  # Agents SDK (latest Apr 22 2025)  
+  "pydantic>=2.7",
+  "httpx>=0.26",
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.29",
+  "streamlit>=1.33",
 ]
 
 [project.optional-dependencies]
-redis     = ["redis>=5.0.0"]
-supabase  = ["supabase>=2.0.0"]
-pinecone  = ["pinecone-client>=2.0.0"]
-qdrant    = ["qdrant-client>=1.8.0"]
-dev       = [
-  "pytest>=8.0",
-  "coverage[toml]>=7.4",
+# Developer tooling (install with `pip install -e ".[dev]"`)
+dev = [
   "ruff>=0.3",
-  "black>=24.2",
+  "black>=24.4.0",
   "mypy>=1.9",
-  "pre-commit>=3.6",
+  "pytest>=8.0",
+  "pytest-asyncio>=0.23",
+  "pre-commit>=3.7",
+  "types-requests>=2.31",
 ]
+# Storage back‑ends
+redis = ["redis[hiredis]>=5.0.0"]
+vector = [
+  "pinecone-client>=3.0",
+  "qdrant-client>=1.8",
+]
+# Agents SDK extras (install with e.g. `pip install 'prismagent[viz]'`)
+voice = ["openai-agents[voice]>=0.0.12"]
+viz = ["openai-agents[viz]>=0.0.12"]
+
+[project.urls]
+Repository = "https://github.com/your-org/prismagent"
+Documentation = "https://github.com/your-org/prismagent/tree/main/docs"
 
 [tool.setuptools]
-packages = [{include = "PRISMAgent", from = "src"}]
+package-dir = {"" = "src"}
 
-[tool.ruff]
-line-length = 100
-target-version = "py311"
-select = ["E", "F", "I"]
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["PRISMAgent", "PRISMAgent.*"]
 
 [tool.black]
-line-length = 100
+line-length = 88
 target-version = ["py311"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+select = ["E", "F", "I", "UP", "B"]
+fix = true
 
 [tool.mypy]
 python_version = "3.11"
 strict = true
-plugins = ["pydantic.mypy"]
+files = ["src", "tests"]
+plugins = []
 
-[tool.coverage.run]
-source = ["PRISMAgent"]
-branch = true
+[tool.pytest.ini_options]
+addopts = "-m 'not slow' -q"
+asyncio_mode = "auto"
+

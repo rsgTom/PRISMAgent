@@ -41,7 +41,11 @@
 git clone https://github.com/your-org/project_name.git
 cd project_name
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"      # installs main + dev extras (ruff, pytest, etc.)
+pip install -e ".[dev,env]"  # installs main + dev extras + dotenv
+
+# Create an environment file
+cp .env.example .env
+# Edit .env with your OpenAI API key and other settings
 
 # 1) run Streamlit prototype
 streamlit run src/project_name/ui/streamlit_app/main.py
@@ -66,29 +70,60 @@ docker compose -f deploy/docker-compose.yml up --build
 
 ## 4 · Configuring storage back-ends
 
-Edit **`src/project_name/config/storage.py`** or set env vars:
+Edit **`.env`** file or set environment variables:
 
 ```bash
 # File-based (default)
-export STORAGE_BACKEND=file
+STORAGE_BACKEND=memory
 # Redis
-export STORAGE_BACKEND=redis
-export REDIS_URL=redis://localhost:6379/0
+STORAGE_BACKEND=redis
+REDIS_URL=redis://localhost:6379/0
 # Supabase (Postgres)
-export STORAGE_BACKEND=supabase
-export SUPABASE_URL=https://xyz.supabase.co
-export SUPABASE_KEY=your_service_key
+STORAGE_BACKEND=supabase
+SUPABASE_URL=https://xyz.supabase.co
+SUPABASE_KEY=your_service_key
 # Pinecone / Qdrant
-export STORAGE_BACKEND=vector
-export VECTOR_PROVIDER=pinecone
-export PINECONE_API_KEY=...
+STORAGE_BACKEND=vector
+VECTOR_PROVIDER=pinecone
+PINECONE_API_KEY=...
 ```
 
 The application swaps implementations at runtime—no code changes.
 
 ---
 
-## 5 · Adding your own pieces
+## 5 · Environment Variables
+
+PRISMAgent uses environment variables for configuration. You can set these in a `.env` file in the root directory, or by setting them in your environment.
+
+### Creating a .env file
+
+```bash
+# Copy the example file
+cp .env.example .env
+
+# Edit the file with your settings
+nano .env
+```
+
+### Required Environment Variables
+
+- `OPENAI_API_KEY`: Your OpenAI API key
+
+### Optional Environment Variables
+
+- `DEFAULT_MODEL`: Default model to use (default: "o3-mini")
+- `MODEL_TEMPERATURE`: Temperature for model generation (default: 0.7)
+- `MODEL_MAX_TOKENS`: Maximum tokens to generate (default: 1000)
+- `STORAGE_BACKEND`: Storage backend to use (default: "memory")
+- `STORAGE_PATH`: Path for file storage (default: "./data")
+- `LOG_LEVEL`: Logging level (default: "INFO")
+
+See `.env.example` for a complete list of available configuration options.
+
+---
+
+## 6 · Adding your own pieces
 
 ### ➤ New tool
 ```python
@@ -125,7 +160,7 @@ run_task(nightly_cleanup, schedule="0 3 * * *")  # cron, in-process
 
 ---
 
-## 6 · Deployment cheat-sheet
+## 7 · Deployment cheat-sheet
 
 | Scenario | Command |
 |----------|---------|
@@ -139,7 +174,7 @@ run_task(nightly_cleanup, schedule="0 3 * * *")  # cron, in-process
 
 ---
 
-## 7 · Testing matrix
+## 8 · Testing matrix
 
 ```text
 tests/
@@ -152,7 +187,7 @@ Mark slow or external tests with `@pytest.mark.integration` or `@pytest.mark.e2e
 
 ---
 
-## 8 · Contributing
+## 9 · Contributing
 
 1. Fork + feature branch  
 2. `pre-commit install` (Black, Ruff, Mypy run auto)  
@@ -162,7 +197,7 @@ Mark slow or external tests with `@pytest.mark.integration` or `@pytest.mark.e2e
 
 ---
 
-## 9 · Roadmap
+## 10 · Roadmap
 
 - [ ] Auth + rate-limit middleware  
 - [ ] Vector memory RAG integration  

@@ -1,104 +1,75 @@
-"""
-PRISMAgent.engine.factory
--------------------------
-
-Central factory for creating or retrieving agents.
-
-Key additions
--------------
-* Dynamic model selection via MODEL_SETTINGS.get_model_for_task()
-* Optional `task` and `complexity` kwargs so callers (or the LLM) can
-  influence the tier without hard-coding a model name.
-"""
-
+# src/PRISMAgent/engine/factory.py
 from __future__ import annotations
 
-from typing import Iterable, List, Literal, Sequence
+"""
+Factory helpers for creating OpenAI-Agents that comply with PRISMAgent rules:
 
-from agents import Agent, AgentHooks, Tool, function_tool
+* All agents are constructed through `agent_factory` (or its alias `spawn_agent`)
+  – never instantiate `agents.Agent` directly.
+* Every new agent is automatically registered in the active registry so that
+  runners, tracing, and memory back-ends can discover it.
+"""
+
+from typing import Callable, List, Optional
+
+from agents import Agent  # OpenAI-Agents SDK
 from PRISMAgent.storage import registry_factory
-from PRISMAgent.config.model import MODEL_SETTINGS
+from PRISMAgent.tools import tool_factory
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Registry singleton (backend chosen via STORAGE_BACKEND env-var)
-# ──────────────────────────────────────────────────────────────────────────────
-_REGISTRY = registry_factory()       # InMemoryRegistry, RedisRegistry, …
+__all__ = ["agent_factory", "spawn_agent"]
 
-# ──────────────────────────────────────────────────────────────────────────────
+
+# --------------------------------------------------------------------------- #
+# Internal helpers
+# --------------------------------------------------------------------------- #
+def _normalize_tools(tools: Optional[List[Callable]]) -> Optional[List[Callable]]:
+    """Convert callables to SDK function-tools (idempotent)."""
+    if not tools:
+        return None
+
+    normalized: List[Callable] = []
+    for t in tools:
+        # Already a tool? keep as-is.
+        if getattr(t, "__agents_tool__", False):
+            normalized.append(t)
+        else:
+            normalized.append(tool_factory(t))
+    return normalized
+
+
+# --------------------------------------------------------------------------- #
 # Public factory
-# ──────────────────────────────────────────────────────────────────────────────
+# --------------------------------------------------------------------------- #
 def agent_factory(
     name: str,
-    instructions: str,
     *,
-    tools: Iterable[Tool] | None = None,
-    hooks: Sequence[AgentHooks] | None = None,
-    task: str = "chat",
-    complexity: Literal["auto", "basic", "advanced"] = "auto",
-    model: str | None = None,
+    instructions: str = "You are a helpful AI agent.",
+    tools: Optional[List[Callable]] = None,
+    handoffs: Optional[List[Agent]] = None,
 ) -> Agent:
+    """Create **and register** an :class:`agents.Agent` instance.
+
+    Args:
+        name: Unique agent identifier.
+        instructions: System prompt for the agent.
+        tools: Optional list of callables or already-wrapped tools.
+        handoffs: Agents this one may delegate tasks to.
+
+    Returns:
+        The live `Agent` object.
     """
-    Create **or** fetch an `Agent` and store it in the global registry.
-
-    Parameters
-    ----------
-    name : unique agent handle
-    instructions : system prompt
-    tools : iterable of `Tool`
-    hooks : iterable of `AgentHooks`
-    task : logical task category ("chat", "code", "math", "vision", …)
-    complexity : force tier ("basic"/"advanced") or "auto"
-    model : explicit model override; if None we auto-select
-
-    Returns
-    -------
-    Agent
-    """
-    if _REGISTRY.exists(name):
-        return _REGISTRY.get(name)
-
-    chosen_model = (
-        model
-        if model
-        else MODEL_SETTINGS.get_model_for_task(task, complexity=complexity)
-    )
-
+    registry = registry_factory()
     agent = Agent(
         name=name,
         instructions=instructions,
-        model=chosen_model,
-        tools=list(tools or []),
-        hooks=list(hooks or []),
+        tools=_normalize_tools(tools),
+        handoffs=handoffs or [],
     )
-    _REGISTRY.register(agent)
+    # Make the agent discoverable by runners / dashboards.
+    registry.register_agent(agent)
     return agent
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# LLM-callable spawn tool
-# ──────────────────────────────────────────────────────────────────────────────
-@function_tool
-def spawn_agent(
-    name: str,
-    instructions: str,
-    task: str = "chat",
-    complexity: Literal["auto", "basic", "advanced"] = "auto",
-    model: str | None = None,
-) -> str:
-    """
-    Tool that lets an agent create a new sub-agent on the fly.
-
-    The LLM can specify either `model` directly *or* a logical `task`
-    category (plus optional `complexity` tier) and let the factory choose.
-    """
-    new_agent = agent_factory(
-        name=name,
-        instructions=instructions,
-        task=task,
-        complexity=complexity,
-        model=model,
-    )
-    return new_agent.name
-
-
-__all__: List[str] = ["agent_factory", "spawn_agent"]
+def spawn_agent(**kwargs) -> Agent:  # pragma: no cover
+    """Backward-compatibility alias for :func:`agent_factory`."""
+    return agent_factory(**kwargs)

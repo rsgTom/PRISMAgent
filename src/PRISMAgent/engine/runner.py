@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any, Iterable, Iterator
 
-from local_agents import Agent, Runner, StreamEvent
+from agents import Agent, Runner, StreamEvent
 from PRISMAgent.config.model import MODEL_SETTINGS
 from PRISMAgent.engine.hooks import DynamicHandoffHook
 

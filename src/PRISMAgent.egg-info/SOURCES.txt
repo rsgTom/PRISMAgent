@@ -8,6 +8,7 @@ src/PRISMAgent.egg-info/requires.txt
 src/PRISMAgent.egg-info/top_level.txt
 src/PRISMAgent/config/__init__.py
 src/PRISMAgent/config/base.py
+src/PRISMAgent/config/env.py
 src/PRISMAgent/config/model.py
 src/PRISMAgent/config/storage.py
 src/PRISMAgent/engine/__init__.py
@@ -22,3 +23,8 @@ src/PRISMAgent/tools/spawn.py
 src/backend/api/index.py
 src/backend/services/agent_service.py
 src/middleware/auth/jwt_auth.py
+src/prismagent.egg-info/PKG-INFO
+src/prismagent.egg-info/SOURCES.txt
+src/prismagent.egg-info/dependency_links.txt
+src/prismagent.egg-info/requires.txt
+src/prismagent.egg-info/top_level.txt
