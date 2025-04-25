@@ -1,4 +1,9 @@
-"""\nPRISMAgent.tools.spawn\n----------------------\n\nThis module provides tools for spawning new agents.\n"""
+"""
+PRISMAgent.tools.spawn
+----------------------
+
+This module provides tools for spawning new agents.
+"""
 
 from __future__ import annotations
 
@@ -15,7 +20,7 @@ logger = get_logger(__name__)
 
 @tool_factory
 @with_log_context(component="spawn_agent_tool")
-def spawn_agent(
+async def spawn_agent(
     name: str,
     instructions: str,
     tools: Optional[List[Union[str, Callable]]] = None,
