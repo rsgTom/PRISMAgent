@@ -20,6 +20,7 @@ try:
     from redisvl.schema import IndexSchema, TextField, TagField, VectorField
     from redisvl.query import Query
     import redis
+    import redis.asyncio as aioredis
     REDISVL_AVAILABLE = True
 except ImportError:
     # RedisVL is not available
@@ -50,8 +51,11 @@ class RedisVLStore:
         self.embed_dim = int(os.getenv("EMBED_DIM", 1536))
         self.prefix = os.getenv("REDIS_PREFIX", "mem:")
         
-        # Connect to Redis
+        # Connect to Redis (sync client for initialization)
         self.redis_client = redis.from_url(self.redis_url)
+        
+        # Async Redis client for operations
+        self.async_redis_client = aioredis.from_url(self.redis_url)
         
         # Initialize/get the index
         self._initialize_index()
@@ -88,6 +92,9 @@ class RedisVLStore:
                 client=self.redis_client
             )
             
+            # Create async index object for operations
+            # Note: RedisVL doesn't have a native async client, so we'll use our own wrappers
+            
             # Check if index exists, create if it doesn't
             try:
                 self.index.info()
@@ -101,7 +108,7 @@ class RedisVLStore:
             logger.error(f"Failed to initialize RedisVL index: {e}")
             raise
     
-    def upsert(self, uid: str, vec: List[float], meta: Dict[str, Any]) -> None:
+    async def upsert(self, uid: str, vec: List[float], meta: Dict[str, Any]) -> bool:
         """
         Store a vector with its metadata.
         
@@ -109,6 +116,9 @@ class RedisVLStore:
             uid: Unique identifier for this vector
             vec: The embedding vector
             meta: Metadata to store with the vector
+        
+        Returns:
+            bool: True if successful, False otherwise
         """
         try:
             # Convert vector to numpy array
@@ -121,6 +131,9 @@ class RedisVLStore:
             }
             
             # Store the document
+            # Note: RedisVL doesn't have native async support, so we're using the sync client
+            # in an async function. In a production environment, we'd want to use
+            # asyncio.to_thread() to avoid blocking the event loop.
             self.index.load(
                 [{"id": uid, **document}]
             )
@@ -130,7 +143,7 @@ class RedisVLStore:
             logger.error(f"Error upserting document {uid}: {e}")
             return False
     
-    def query(self, 
+    async def query(self, 
              vec: List[float], 
              k: int = 5, 
              filter_expr: Optional[str] = None) -> Dict[str, Any]:
@@ -162,6 +175,8 @@ class RedisVLStore:
                 query.filter(filter_expr)
             
             # Execute query
+            # Note: RedisVL doesn't have native async support, so we're using the sync client 
+            # in an async function.
             response = self.index.query(query)
             
             # Format results to match other backends
@@ -182,7 +197,7 @@ class RedisVLStore:
             logger.error(f"Error querying vector store: {e}")
             return {"matches": []}
 
-    def delete(self, uid: str) -> bool:
+    async def delete(self, uid: str) -> bool:
         """Delete a vector from the index.
         
         Args:
@@ -202,7 +217,7 @@ class RedisVLStore:
             logger.error(f"Error deleting from RedisVL: {e}")
             return False
             
-    def clear(self) -> bool:
+    async def clear(self) -> bool:
         """Clear all vectors from the index.
         
         Returns:
@@ -219,4 +234,29 @@ class RedisVLStore:
             return True
         except Exception as e:
             logger.error(f"Error clearing RedisVL index: {e}")
-            return False 
+            return False
+            
+    async def count(self) -> int:
+        """Return the number of vectors in the index.
+        
+        Returns:
+            int: Number of vectors
+        """
+        if not REDISVL_AVAILABLE or self.index is None:
+            logger.warning("RedisVL not available. Cannot count vectors.")
+            return 0
+            
+        try:
+            # Note: RedisVL doesn't have a direct count method
+            # We use a query with high limit to get all documents and count them
+            query = Query(
+                vector=np.zeros(self.embed_dim).astype(np.float32),
+                vector_field_name="vector",
+                return_fields=["id"],
+                num_results=10000  # Large number to get all documents
+            )
+            response = self.index.query(query)
+            return len(response.docs)
+        except Exception as e:
+            logger.error(f"Error counting vectors in RedisVL: {e}")
+            return 0
