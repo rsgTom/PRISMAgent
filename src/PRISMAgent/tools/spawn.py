@@ -88,7 +88,7 @@ def spawn_agent(
         
         for agent_name in handoffs:
             logger.debug(f"Resolving handoff agent: {agent_name}", agent_name=agent_name)
-            agent = registry.get_agent(agent_name)
+            agent = await registry.get_agent(agent_name)
             if not agent:
                 error_msg = f"Agent not found for handoff: {agent_name}"
                 logger.error(error_msg, agent_name=agent_name)
