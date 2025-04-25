@@ -1,1 +1,170 @@
-"""Unit tests for the spawn_agent function tool."""\n\nfrom unittest.mock import patch, MagicMock\nimport pytest\n\nfrom PRISMAgent.tools.spawn import spawn_agent\nfrom agents import Agent\n\n\n@pytest.fixture\ndef mock_registry():\n    """Create a mock registry that can be used to test agent spawning."""\n    with patch("PRISMAgent.storage.registry_factory") as mock_registry_factory:\n        registry_mock = MagicMock()\n        mock_registry_factory.return_value = registry_mock\n        yield registry_mock\n\n\n@pytest.fixture\ndef mock_agent_factory():\n    """Create a mock agent_factory that can be injected for testing."""\n    with patch("PRISMAgent.tools.spawn.agent_factory") as mock_factory:\n        # Configure the mock to return a Mock agent\n        agent_mock = MagicMock(spec=Agent)\n        agent_mock.name = "test_agent"\n        mock_factory.return_value = agent_mock\n        yield mock_factory, agent_mock\n\n\n@pytest.fixture\ndef mock_available_tools():\n    """Create a mock for the list_available_tools function."""\n    with patch("PRISMAgent.tools.list_available_tools") as mock_tools_list:\n        mock_tools_list.return_value = ["test_tool", "another_tool"]\n        yield mock_tools_list\n\n\n@pytest.fixture\ndef mock_import_module():\n    """Create a mock for importlib.import_module."""\n    with patch("importlib.import_module") as mock_import:\n        module_mock = MagicMock()\n        # Create a mock tool function to return\n        tool_function = MagicMock()\n        tool_function.__name__ = "test_tool"\n        tool_function.__prism_name__ = "test_tool"\n        \n        # Set up the module mock to return the tool function\n        module_mock.test_tool = tool_function\n        mock_import.return_value = module_mock\n        \n        yield mock_import, tool_function\n\n\ndef test_spawn_agent_with_string_tools(mock_registry, mock_agent_factory, mock_available_tools, mock_import_module):\n    """Test spawn_agent when passed tool names as strings."""\n    mock_factory, mock_agent = mock_agent_factory\n    _, tool_function = mock_import_module\n    \n    # Call the spawn_agent function with a tool name\n    result = spawn_agent(\n        name="new_agent",\n        instructions="You are a test agent",\n        tools=["test_tool"]\n    )\n    \n    # Verify it correctly creates the agent\n    mock_factory.assert_called_once()\n    factory_args = mock_factory.call_args[1]\n    assert factory_args["name"] == "new_agent"\n    assert factory_args["instructions"] == "You are a test agent"\n    assert len(factory_args["tools"]) == 1\n    assert factory_args["tools"][0] == tool_function\n    \n    # Verify the result is as expected\n    assert result["id"] == "test_agent"\n    assert result["status"] == "created"\n    assert "test_tool" in result["tools"]\n\n\ndef test_spawn_agent_with_callable_tools(mock_registry, mock_agent_factory):\n    """Test spawn_agent when passed tool functions directly."""\n    mock_factory, mock_agent = mock_agent_factory\n    \n    # Create a mock tool\n    mock_tool = MagicMock()\n    mock_tool.__name__ = "direct_tool"\n    \n    # Call the spawn_agent function with a direct tool reference\n    result = spawn_agent(\n        name="new_agent",\n        instructions="You are a test agent",\n        tools=[mock_tool]\n    )\n    \n    # Verify it correctly creates the agent\n    mock_factory.assert_called_once()\n    factory_args = mock_factory.call_args[1]\n    assert factory_args["name"] == "new_agent"\n    assert factory_args["instructions"] == "You are a test agent"\n    assert len(factory_args["tools"]) == 1\n    assert factory_args["tools"][0] == mock_tool\n    \n    # Verify the result is as expected\n    assert result["id"] == "test_agent"\n    assert result["status"] == "created"\n    assert "direct_tool" in result["tools"]\n\n\ndef test_spawn_agent_with_handoffs(mock_registry, mock_agent_factory):\n    """Test spawn_agent when passed handoffs parameter."""\n    mock_factory, mock_agent = mock_agent_factory\n    registry_mock = mock_registry\n    \n    # Create a mock agent that the registry will return\n    handoff_agent = MagicMock(spec=Agent)\n    handoff_agent.name = "handoff_agent"\n    registry_mock.get_agent.return_value = handoff_agent\n    \n    # Call the spawn_agent function with handoffs\n    result = spawn_agent(\n        name="new_agent",\n        instructions="You are a test agent",\n        handoffs=["handoff_agent"]\n    )\n    \n    # Verify it correctly creates the agent\n    mock_factory.assert_called_once()\n    factory_args = mock_factory.call_args[1]\n    assert factory_args["name"] == "new_agent"\n    assert factory_args["instructions"] == "You are a test agent"\n    assert len(factory_args["handoffs"]) == 1\n    assert factory_args["handoffs"][0] == handoff_agent\n    \n    # Verify the result is as expected\n    assert result["id"] == "test_agent"\n    assert result["status"] == "created"\n    assert "handoff_agent" in result["handoffs"]\n\n\ndef test_spawn_agent_invalid_tool(mock_registry, mock_agent_factory, mock_available_tools):\n    """Test that spawn_agent raises an error when passed an invalid tool name."""\n    with pytest.raises(ValueError) as excinfo:\n        spawn_agent(\n            name="new_agent",\n            instructions="You are a test agent",\n            tools=["nonexistent_tool"]\n        )\n    \n    assert "Invalid tool name" in str(excinfo.value)\n\n\ndef test_spawn_agent_invalid_handoff(mock_registry, mock_agent_factory):\n    """Test that spawn_agent raises an error when passed an invalid handoff agent."""\n    registry_mock = mock_registry\n    registry_mock.get_agent.return_value = None\n    \n    with pytest.raises(ValueError) as excinfo:\n        spawn_agent(\n            name="new_agent",\n            instructions="You are a test agent",\n            handoffs=["nonexistent_agent"]\n        )\n    \n    assert "Agent not found for handoff" in str(excinfo.value)
+"""Unit tests for the spawn_agent function tool."""
+
+from unittest.mock import patch, MagicMock, AsyncMock
+import pytest
+
+from PRISMAgent.tools.spawn import spawn_agent
+from agents import Agent
+
+
+@pytest.fixture
+def mock_registry():
+    """Create a mock registry that can be used to test agent spawning."""
+    with patch("PRISMAgent.storage.registry_factory") as mock_registry_factory:
+        registry_mock = AsyncMock()
+        mock_registry_factory.return_value = registry_mock
+        yield registry_mock
+
+
+@pytest.fixture
+def mock_agent_factory():
+    """Create a mock agent_factory that can be injected for testing."""
+    with patch("PRISMAgent.tools.spawn.agent_factory") as mock_factory:
+        # Configure the mock to return a Mock agent
+        agent_mock = MagicMock(spec=Agent)
+        agent_mock.name = "test_agent"
+        mock_factory.return_value = agent_mock
+        yield mock_factory, agent_mock
+
+
+@pytest.fixture
+def mock_available_tools():
+    """Create a mock for the list_available_tools function."""
+    with patch("PRISMAgent.tools.list_available_tools") as mock_tools_list:
+        mock_tools_list.return_value = ["test_tool", "another_tool"]
+        yield mock_tools_list
+
+
+@pytest.fixture
+def mock_import_module():
+    """Create a mock for importlib.import_module."""
+    with patch("importlib.import_module") as mock_import:
+        module_mock = MagicMock()
+        # Create a mock tool function to return
+        tool_function = MagicMock()
+        tool_function.__name__ = "test_tool"
+        tool_function.__prism_name__ = "test_tool"
+        
+        # Set up the module mock to return the tool function
+        module_mock.test_tool = tool_function
+        mock_import.return_value = module_mock
+        
+        yield mock_import, tool_function
+
+
+@pytest.mark.asyncio
+async def test_spawn_agent_with_string_tools(mock_registry, mock_agent_factory, mock_available_tools, mock_import_module):
+    """Test spawn_agent when passed tool names as strings."""
+    mock_factory, mock_agent = mock_agent_factory
+    _, tool_function = mock_import_module
+    
+    # Call the spawn_agent function with a tool name
+    result = await spawn_agent(
+        name="new_agent",
+        instructions="You are a test agent",
+        tools=["test_tool"]
+    )
+    
+    # Verify it correctly creates the agent
+    mock_factory.assert_called_once()
+    factory_args = mock_factory.call_args[1]
+    assert factory_args["name"] == "new_agent"
+    assert factory_args["instructions"] == "You are a test agent"
+    assert len(factory_args["tools"]) == 1
+    assert factory_args["tools"][0] == tool_function
+    
+    # Verify the result is as expected
+    assert result["id"] == "test_agent"
+    assert result["status"] == "created"
+    assert "test_tool" in result["tools"]
+
+
+@pytest.mark.asyncio
+async def test_spawn_agent_with_callable_tools(mock_registry, mock_agent_factory):
+    """Test spawn_agent when passed tool functions directly."""
+    mock_factory, mock_agent = mock_agent_factory
+    
+    # Create a mock tool
+    mock_tool = MagicMock()
+    mock_tool.__name__ = "direct_tool"
+    
+    # Call the spawn_agent function with a direct tool reference
+    result = await spawn_agent(
+        name="new_agent",
+        instructions="You are a test agent",
+        tools=[mock_tool]
+    )
+    
+    # Verify it correctly creates the agent
+    mock_factory.assert_called_once()
+    factory_args = mock_factory.call_args[1]
+    assert factory_args["name"] == "new_agent"
+    assert factory_args["instructions"] == "You are a test agent"
+    assert len(factory_args["tools"]) == 1
+    assert factory_args["tools"][0] == mock_tool
+    
+    # Verify the result is as expected
+    assert result["id"] == "test_agent"
+    assert result["status"] == "created"
+    assert "direct_tool" in result["tools"]
+
+
+@pytest.mark.asyncio
+async def test_spawn_agent_with_handoffs(mock_registry, mock_agent_factory):
+    """Test spawn_agent when passed handoffs parameter."""
+    mock_factory, mock_agent = mock_agent_factory
+    registry_mock = mock_registry
+    
+    # Create a mock agent that the registry will return
+    handoff_agent = MagicMock(spec=Agent)
+    handoff_agent.name = "handoff_agent"
+    registry_mock.get_agent.return_value = handoff_agent
+    
+    # Call the spawn_agent function with handoffs
+    result = await spawn_agent(
+        name="new_agent",
+        instructions="You are a test agent",
+        handoffs=["handoff_agent"]
+    )
+    
+    # Verify it correctly creates the agent
+    mock_factory.assert_called_once()
+    factory_args = mock_factory.call_args[1]
+    assert factory_args["name"] == "new_agent"
+    assert factory_args["instructions"] == "You are a test agent"
+    assert len(factory_args["handoffs"]) == 1
+    assert factory_args["handoffs"][0] == handoff_agent
+    
+    # Verify the result is as expected
+    assert result["id"] == "test_agent"
+    assert result["status"] == "created"
+    assert "handoff_agent" in result["handoffs"]
+
+
+@pytest.mark.asyncio
+async def test_spawn_agent_invalid_tool(mock_registry, mock_agent_factory, mock_available_tools):
+    """Test that spawn_agent raises an error when passed an invalid tool name."""
+    with pytest.raises(ValueError) as excinfo:
+        await spawn_agent(
+            name="new_agent",
+            instructions="You are a test agent",
+            tools=["nonexistent_tool"]
+        )
+    
+    assert "Invalid tool name" in str(excinfo.value)
+
+
+@pytest.mark.asyncio
+async def test_spawn_agent_invalid_handoff(mock_registry, mock_agent_factory):
+    """Test that spawn_agent raises an error when passed an invalid handoff agent."""
+    registry_mock = mock_registry
+    registry_mock.get_agent.return_value = None
+    
+    with pytest.raises(ValueError) as excinfo:
+        await spawn_agent(
+            name="new_agent",
+            instructions="You are a test agent",
+            handoffs=["nonexistent_agent"]
+        )
+    
+    assert "Agent not found for handoff" in str(excinfo.value)
