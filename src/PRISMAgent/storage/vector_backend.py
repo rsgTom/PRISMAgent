@@ -9,6 +9,7 @@ import os
 import time
 import uuid
 import logging
+import asyncio
 from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Optional, Union, Tuple
 
@@ -23,7 +24,7 @@ class VectorBackendProtocol(ABC):
     """Abstract interface for vector storage backend implementations."""
 
     @abstractmethod
-    def upsert(self, id: str, vector: List[float], metadata: Optional[Dict[str, Any]] = None) -> bool:
+    async def upsert(self, id: str, vector: List[float], metadata: Optional[Dict[str, Any]] = None) -> bool:
         """
         Store or update a vector in the backend.
         
@@ -38,8 +39,8 @@ class VectorBackendProtocol(ABC):
         pass
     
     @abstractmethod
-    def query(self, vector: List[float], k: int = 10, 
-              filter_expr: Optional[Dict] = None) -> Dict:
+    async def query(self, vector: List[float], k: int = 10, 
+               filter_expr: Optional[Dict] = None) -> Dict:
         """
         Find the k nearest neighbors to the given vector.
         
@@ -54,7 +55,7 @@ class VectorBackendProtocol(ABC):
         pass
     
     @abstractmethod
-    def get(self, id: str) -> Optional[Dict]:
+    async def get(self, id: str) -> Optional[Dict]:
         """
         Retrieve a vector by ID.
         
@@ -67,7 +68,7 @@ class VectorBackendProtocol(ABC):
         pass
     
     @abstractmethod
-    def delete(self, id: str) -> bool:
+    async def delete(self, id: str) -> bool:
         """
         Delete a vector by ID.
         
@@ -94,7 +95,7 @@ class InMemoryVectorBackend(VectorBackendProtocol):
         self.vectors: Dict[str, Dict] = {}
         logger.info(f"Initialized in-memory vector backend with namespace '{namespace}'")
     
-    def upsert(self, id: str, vector: List[float], metadata: Optional[Dict[str, Any]] = None) -> bool:
+    async def upsert(self, id: str, vector: List[float], metadata: Optional[Dict[str, Any]] = None) -> bool:
         """Store or update a vector in memory."""
         try:
             self.vectors[id] = {
@@ -107,8 +108,8 @@ class InMemoryVectorBackend(VectorBackendProtocol):
             logger.error(f"Failed to upsert vector {id}: {e}")
             return False
     
-    def query(self, vector: List[float], k: int = 10, 
-              filter_expr: Optional[Dict] = None) -> Dict:
+    async def query(self, vector: List[float], k: int = 10, 
+               filter_expr: Optional[Dict] = None) -> Dict:
         """Find the k nearest neighbors to the given vector using cosine similarity."""
         try:
             results = []
@@ -136,11 +137,11 @@ class InMemoryVectorBackend(VectorBackendProtocol):
             logger.error(f"Error during vector query: {e}")
             return {"matches": []}
     
-    def get(self, id: str) -> Optional[Dict]:
+    async def get(self, id: str) -> Optional[Dict]:
         """Retrieve a vector by ID."""
         return self.vectors.get(id)
     
-    def delete(self, id: str) -> bool:
+    async def delete(self, id: str) -> bool:
         """Delete a vector by ID."""
         try:
             if id in self.vectors:
@@ -258,7 +259,7 @@ class PineconeVectorBackend(VectorBackendProtocol):
             logger.error(f"Failed to initialize Pinecone backend: {e}")
             raise
     
-    def upsert(self, id: str, vector: List[float], metadata: Optional[Dict[str, Any]] = None) -> bool:
+    async def upsert(self, id: str, vector: List[float], metadata: Optional[Dict[str, Any]] = None) -> bool:
         """Store or update a vector in Pinecone."""
         try:
             # Prepare the vector record
@@ -268,24 +269,32 @@ class PineconeVectorBackend(VectorBackendProtocol):
                 "metadata": metadata or {}
             }
             
-            # Upsert the vector
-            self.index.upsert(vectors=[record], namespace=self.namespace)
+            # Use an executor to run the blocking I/O in a thread pool
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                None, 
+                lambda: self.index.upsert(vectors=[record], namespace=self.namespace)
+            )
             return True
             
         except Exception as e:
             logger.error(f"Failed to upsert vector {id} to Pinecone: {e}")
             return False
     
-    def query(self, vector: List[float], k: int = 10, 
-              filter_expr: Optional[Dict] = None) -> Dict:
+    async def query(self, vector: List[float], k: int = 10, 
+               filter_expr: Optional[Dict] = None) -> Dict:
         """Find the k nearest neighbors to the given vector in Pinecone."""
         try:
-            # Query the index
-            results = self.index.query(
-                vector=vector,
-                top_k=k,
-                namespace=self.namespace,
-                filter=filter_expr
+            # Use an executor to run the blocking I/O in a thread pool
+            loop = asyncio.get_event_loop()
+            results = await loop.run_in_executor(
+                None,
+                lambda: self.index.query(
+                    vector=vector,
+                    top_k=k,
+                    namespace=self.namespace,
+                    filter=filter_expr
+                )
             )
             
             return results
@@ -294,10 +303,16 @@ class PineconeVectorBackend(VectorBackendProtocol):
             logger.error(f"Error querying Pinecone: {e}")
             return {"matches": []}
     
-    def get(self, id: str) -> Optional[Dict]:
+    async def get(self, id: str) -> Optional[Dict]:
         """Retrieve a vector by ID from Pinecone."""
         try:
-            result = self.index.fetch(ids=[id], namespace=self.namespace)
+            # Use an executor to run the blocking I/O in a thread pool
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(
+                None,
+                lambda: self.index.fetch(ids=[id], namespace=self.namespace)
+            )
+            
             if id in result.get("vectors", {}):
                 vector_data = result["vectors"][id]
                 return {
@@ -310,10 +325,15 @@ class PineconeVectorBackend(VectorBackendProtocol):
             logger.error(f"Failed to get vector {id} from Pinecone: {e}")
             return None
     
-    def delete(self, id: str) -> bool:
+    async def delete(self, id: str) -> bool:
         """Delete a vector by ID from Pinecone."""
         try:
-            self.index.delete(ids=[id], namespace=self.namespace)
+            # Use an executor to run the blocking I/O in a thread pool
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                None,
+                lambda: self.index.delete(ids=[id], namespace=self.namespace)
+            )
             return True
         except Exception as e:
             logger.error(f"Failed to delete vector {id} from Pinecone: {e}")
@@ -351,7 +371,7 @@ class VectorStore:
         
         logger.info(f"Initialized vector store with {provider} backend")
     
-    def upsert(self, id: str, vector: List[float], metadata: Optional[Dict[str, Any]] = None) -> bool:
+    async def upsert(self, id: str, vector: List[float], metadata: Optional[Dict[str, Any]] = None) -> bool:
         """
         Store or update a vector.
         
@@ -363,10 +383,10 @@ class VectorStore:
         Returns:
             Boolean indicating success
         """
-        return self.backend.upsert(id, vector, metadata)
+        return await self.backend.upsert(id, vector, metadata)
     
-    def query(self, vector: List[float], k: int = 10, 
-              filter_expr: Optional[Dict] = None) -> Dict:
+    async def query(self, vector: List[float], k: int = 10, 
+               filter_expr: Optional[Dict] = None) -> Dict:
         """
         Find the k nearest neighbors to the given vector.
         
@@ -378,9 +398,9 @@ class VectorStore:
         Returns:
             Dictionary containing matches
         """
-        return self.backend.query(vector, k, filter_expr)
+        return await self.backend.query(vector, k, filter_expr)
     
-    def get(self, id: str) -> Optional[Dict]:
+    async def get(self, id: str) -> Optional[Dict]:
         """
         Retrieve a vector by ID.
         
@@ -390,9 +410,9 @@ class VectorStore:
         Returns:
             Dictionary containing the vector and metadata if found, None otherwise
         """
-        return self.backend.get(id)
+        return await self.backend.get(id)
     
-    def delete(self, id: str) -> bool:
+    async def delete(self, id: str) -> bool:
         """
         Delete a vector by ID.
         
@@ -402,9 +422,9 @@ class VectorStore:
         Returns:
             Boolean indicating success
         """
-        return self.backend.delete(id)
+        return await self.backend.delete(id)
     
-    def exists(self, name: str) -> bool:
+    async def exists(self, name: str) -> bool:
         """
         Check if an agent with the given name exists.
         
@@ -416,7 +436,7 @@ class VectorStore:
         """
         return name in self._agents
     
-    def get_agent(self, name: str) -> Optional[Agent]:
+    async def get_agent(self, name: str) -> Optional[Agent]:
         """
         Get an agent by name. Returns None if not found.
         
@@ -430,7 +450,7 @@ class VectorStore:
         """
         return self._agents.get(name)
     
-    def register(self, agent: Agent) -> None:
+    async def register(self, agent: Agent) -> None:
         """
         Register an agent in the registry.
         
@@ -439,7 +459,7 @@ class VectorStore:
         """
         self._agents[agent.name] = agent
     
-    def list_agents(self) -> List[str]:
+    async def list_agents(self) -> List[str]:
         """
         List all agent names in the registry.
         
