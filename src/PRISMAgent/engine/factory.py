@@ -5,7 +5,7 @@ from __future__ import annotations
 Factory helpers for creating OpenAI-Agents that comply with PRISMAgent rules:
 
 * All agents are constructed through `agent_factory` (or its alias `spawn_agent`)
-  – never instantiate `agents.Agent` directly.
+  ‣ never instantiate `agents.Agent` directly.
 * Every new agent is automatically registered in the active registry so that
   runners, tracing, and memory back-ends can discover it.
 """
@@ -15,13 +15,17 @@ from typing import Callable, List, Optional
 from agents import Agent  # OpenAI-Agents SDK
 from PRISMAgent.storage import registry_factory
 from PRISMAgent.tools import tool_factory
+from PRISMAgent.util import get_logger, with_log_context
+
+# Get a logger for this module
+logger = get_logger(__name__)
 
 __all__ = ["agent_factory", "spawn_agent"]
 
 
-# --------------------------------------------------------------------------- #
+# ----------------------------------------------------------------------- #
 # Internal helpers
-# --------------------------------------------------------------------------- #
+# ----------------------------------------------------------------------- #
 def _normalize_tools(tools: Optional[List[Callable]]) -> Optional[List[Callable]]:
     """Convert callables to SDK function-tools (idempotent)."""
     if not tools:
@@ -37,9 +41,10 @@ def _normalize_tools(tools: Optional[List[Callable]]) -> Optional[List[Callable]
     return normalized
 
 
-# --------------------------------------------------------------------------- #
+# ----------------------------------------------------------------------- #
 # Public factory
-# --------------------------------------------------------------------------- #
+# ----------------------------------------------------------------------- #
+@with_log_context(component="agent_factory")
 def agent_factory(
     name: str,
     *,
@@ -58,18 +63,35 @@ def agent_factory(
     Returns:
         The live `Agent` object.
     """
+    logger.info(f"Creating agent: {name}", agent_name=name)
+    
     registry = registry_factory()
+    
+    # Normalize tools
+    normalized_tools = _normalize_tools(tools)
+    if normalized_tools:
+        logger.debug(
+            f"Agent {name} initialized with {len(normalized_tools)} tools", 
+            agent_name=name, 
+            tool_count=len(normalized_tools)
+        )
+    
+    # Create the agent
     agent = Agent(
         name=name,
         instructions=instructions,
-        tools=_normalize_tools(tools),
+        tools=normalized_tools,
         handoffs=handoffs or [],
     )
+    
     # Make the agent discoverable by runners / dashboards.
     registry.register_agent(agent)
+    logger.info(f"Agent {name} registered successfully", agent_name=name)
+    
     return agent
 
 
 def spawn_agent(**kwargs) -> Agent:  # pragma: no cover
     """Backward-compatibility alias for :func:`agent_factory`."""
+    logger.debug("spawn_agent called (alias for agent_factory)")
     return agent_factory(**kwargs)
