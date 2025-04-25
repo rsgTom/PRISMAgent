@@ -119,6 +119,44 @@ results = vector_store.query(query_vector, k=5)
 
 See the [Vector Storage Documentation](docs/api/storage/vector_storage.md) and [examples](examples/) for more details.
 
+### Chat History Storage
+
+PRISMAgent now includes built-in chat history storage capabilities that integrate seamlessly with the existing storage backends:
+
+- **In-memory**: Lightweight chat history storage for development and testing
+- **File-based**: Persistent chat history storage using JSON files
+- **Redis**: High-performance chat history storage with configurable TTL
+- **Supabase**: SQL-based chat history storage with advanced query capabilities
+
+Example usage:
+
+```python
+from PRISMAgent.storage import chat_storage_factory
+from PRISMAgent.storage.chat_storage import ChatMessage
+
+# Get the configured chat storage backend
+chat_storage = chat_storage_factory()
+
+# Save a chat message
+await chat_storage.save_message(
+    agent_name="assistant",
+    message=ChatMessage(role="user", content="Hello, agent!")
+)
+
+# Retrieve chat history
+messages = await chat_storage.get_history(agent_name="assistant", limit=10)
+
+# Clear chat history
+await chat_storage.clear_history(agent_name="assistant")
+```
+
+The chat history API is available through REST endpoints:
+
+- `GET /{agent_name}/history?limit=50` - Get chat history for an agent
+- `DELETE /{agent_name}/history` - Clear chat history for an agent
+
+Chat messages are automatically saved when using the `/send` or `/stream` endpoints.
+
 ---
 
 ## 5 · Environment Variables
@@ -147,6 +185,9 @@ nano .env
 - `STORAGE_BACKEND`: Storage backend to use (default: "memory")
 - `STORAGE_PATH`: Path for file storage (default: "./data")
 - `LOG_LEVEL`: Logging level (default: "INFO")
+- `CHAT_HISTORY_ENABLED`: Whether to enable chat history (default: true)
+- `CHAT_HISTORY_MAX_MESSAGES`: Maximum messages to store per agent (default: 100)
+- `CHAT_HISTORY_RETENTION_DAYS`: Number of days to retain chat history (default: 30)
 
 See `.env.example` for a complete list of available configuration options.
 
@@ -154,7 +195,7 @@ See `.env.example` for a complete list of available configuration options.
 
 ## 6 · Adding your own pieces
 
-### ➤ New tool
+### ➴ New tool
 
 ```python
 # src/project_name/tools/greet.py
@@ -167,7 +208,7 @@ def greet(name: str) -> str:
 
 The `agent_factory` auto-discovers it (or list it explicitly).
 
-### ➤ New plug-in
+### ➴ New plug-in
 
 ```python
 # my_plugin/__init__.py
@@ -181,7 +222,7 @@ class JokePlugin:
 
 Copy into `plugins/` or `pip install my_plugin`; it shows up next launch.
 
-### ➤ Background task
+### ➴ Background task
 
 ```python
 from project_name.tasks.runner import run_task
@@ -247,15 +288,16 @@ We're using GitHub Projects to organize our work. Check out these project boards
 
 - [ ] Auth + rate-limit middleware  
 - [x] Vector memory RAG integration  
+- [x] Chat history storage and retrieval  
 - [ ] React/Tailwind front-end (Next.js)  
 - [ ] Celery/Arq driver in `tasks/`  
 - [ ] Helm chart & Terraform modules  
 
 ### Current Priorities
 
-1. **Critical Fixes** - Complete async implementation in storage backends
-2. **Core Features** - Implement chat history storage and vector storage
-3. **Testing & Quality** - Improve test coverage and implement standard logging
+1. **Core Features** - Implement chat history storage and vector storage
+2. **Environment-Specific Logging** - Configure logging for different environments
+3. **Testing & Quality** - Improve test coverage and implement standardized logging
 4. **Infrastructure** - Set up CI/CD pipeline with GitHub Actions
 
-> **Questions?** Open an issue or join the Discord. Happy hacking! 👉
+> **Questions?** Open an issue or join the Discord. Happy hacking! 😉
