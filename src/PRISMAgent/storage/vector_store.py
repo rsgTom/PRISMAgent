@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 
 from ..config import env
+from agents import Agent
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -219,8 +220,32 @@ class InMemoryVectorStore(VectorStore):
             True if metadata matches filter
         """
         for key, value in filter.items():
-            if key not in metadata or metadata[key] != value:
+            # Handle complex filters (dict with operators)
+            if isinstance(value, dict):
+                # Only supporting basic operators for now
+                for op, op_value in value.items():
+                    if op == "$gt":
+                        if key not in metadata or metadata[key] <= op_value:
+                            return False
+                    elif op == "$gte":
+                        if key not in metadata or metadata[key] < op_value:
+                            return False
+                    elif op == "$lt":
+                        if key not in metadata or metadata[key] >= op_value:
+                            return False
+                    elif op == "$lte":
+                        if key not in metadata or metadata[key] > op_value:
+                            return False
+                    elif op == "$ne":
+                        if key in metadata and metadata[key] == op_value:
+                            return False
+                    else:
+                        logger.warning(f"Unsupported operator: {op}")
+                        return False
+            # Simple equality filter
+            elif key not in metadata or metadata[key] != value:
                 return False
+        
         return True
     
     def delete(self, ids: List[str]) -> None:
@@ -243,37 +268,132 @@ class InMemoryVectorStore(VectorStore):
         self.ids = [self.ids[i] for i in indices_to_keep]
 
 
-# Add more vector store implementations as needed:
-# - PineconeVectorStore
-# - QdrantVectorStore
-# - ChromaVectorStore
-# etc.
-
-
-def get_vector_store(
-    provider: Optional[str] = None,
-    **kwargs
-) -> VectorStore:
+class VectorStore:
     """
-    Get a vector store instance.
+    Vector store facade providing unified access to different vector storage backends.
     
-    Args:
-        provider: Vector store provider (default from env or "memory")
-        **kwargs: Additional parameters for the vector store
-        
-    Returns:
-        VectorStore instance
-        
-    Raises:
-        ValueError: If provider is not supported
+    This class selects the appropriate backend based on the VECTOR_PROVIDER
+    environment variable.
     """
-    # Default provider
-    if provider is None:
-        provider = env.get("VECTOR_STORE_PROVIDER", "memory")
     
-    # Create vector store based on provider
-    if provider.lower() == "memory":
-        return InMemoryVectorStore(**kwargs)
-    # Add more providers here
-    else:
-        raise ValueError(f"Unsupported vector store provider: {provider}") 
+    def __init__(self, namespace: str = "default"):
+        """
+        Initialize the vector store with the appropriate backend.
+        
+        Args:
+            namespace: Namespace for the vectors
+        """
+        # Determine which backend to use from environment
+        provider = env.VECTOR_PROVIDER or "memory"
+        self.backend_name = provider.lower()
+        
+        if provider.lower() == "pinecone":
+            from .vector_backend import PineconeVectorBackend
+            self.backend = PineconeVectorBackend(namespace)
+        elif provider.lower() == "memory":
+            from .vector_backend import InMemoryVectorBackend
+            self.backend = InMemoryVectorBackend(namespace)
+        else:
+            raise ValueError(f"Unsupported vector provider: {provider}")
+        
+        # Initialize agent storage
+        self._agents = {}
+        
+        logger.info(f"Initialized vector store with {provider} backend")
+    
+    def upsert(self, id: str, vector: List[float], metadata: Optional[Dict[str, Any]] = None) -> bool:
+        """
+        Store or update a vector.
+        
+        Args:
+            id: Unique identifier for the vector
+            vector: The vector data as a list of floats
+            metadata: Optional metadata to store with the vector
+            
+        Returns:
+            Boolean indicating success
+        """
+        return self.backend.upsert(id, vector, metadata)
+    
+    def query(self, vector: List[float], k: int = 10, 
+              filter_expr: Optional[Dict] = None) -> Dict:
+        """
+        Find the k nearest neighbors to the given vector.
+        
+        Args:
+            vector: The query vector
+            k: Number of results to return
+            filter_expr: Optional filter expression
+            
+        Returns:
+            Dictionary containing matches
+        """
+        return self.backend.query(vector, k, filter_expr)
+    
+    def get(self, id: str) -> Optional[Dict]:
+        """
+        Retrieve a vector by ID.
+        
+        Args:
+            id: The vector ID
+            
+        Returns:
+            Dictionary containing the vector and metadata if found, None otherwise
+        """
+        return self.backend.get(id)
+    
+    def delete(self, id: str) -> bool:
+        """
+        Delete a vector by ID.
+        
+        Args:
+            id: The vector ID
+            
+        Returns:
+            Boolean indicating success
+        """
+        return self.backend.delete(id)
+    
+    def exists(self, name: str) -> bool:
+        """
+        Check if an agent with the given name exists.
+        
+        Args:
+            name: Agent name to check
+            
+        Returns:
+            True if the agent exists, False otherwise
+        """
+        return name in self._agents
+    
+    def get_agent(self, name: str) -> Optional[Agent]:
+        """
+        Get an agent by name. Returns None if not found.
+        
+        This is a safer alternative to get() that doesn't raise KeyError.
+        
+        Args:
+            name: Agent name to retrieve
+            
+        Returns:
+            Agent object if found, None otherwise
+        """
+        return self._agents.get(name)
+    
+    def register(self, agent: Agent) -> None:
+        """
+        Register an agent in the registry.
+        
+        Args:
+            agent: Agent object to register
+        """
+        self._agents[agent.name] = agent
+    
+    def list_agents(self) -> List[str]:
+        """
+        List all agent names in the registry.
+        
+        Returns:
+            List of agent names
+        """
+        return list(self._agents.keys())
