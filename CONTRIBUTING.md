@@ -91,6 +91,34 @@ These standards are enforced by pre-commit hooks and CI/CD checks.
    - Reference the issue number
    - Ensure CI checks pass
 
+## CI/CD Pipeline
+
+PRISMAgent uses GitHub Actions for Continuous Integration and Deployment:
+
+1. **Code Quality Checks**
+   - Automatically run on every push and pull request
+   - Checks code formatting with Black
+   - Lints with Ruff
+   - Performs type checking with Mypy
+
+2. **Automated Testing**
+   - Unit tests run on every push and pull request
+   - Integration tests verify component interactions
+   - End-to-end tests validate complete workflows
+   - Code coverage is tracked and reported
+
+3. **Pull Request Validation**
+   - Status checks must pass before merging
+   - PR titles are checked for conventional commit format
+   - Required labels ensure proper categorization
+
+4. **Deployment Workflow**
+   - Docker images are built and pushed to GitHub Container Registry
+   - Staging deployment happens automatically on merge to main
+   - Production deployment requires manual approval
+
+For detailed information about the CI/CD process, see [docs/ci_cd_process.md](docs/ci_cd_process.md).
+
 ## Directory Structure Guidelines
 
 Respect the directory boundaries:
