@@ -16,6 +16,7 @@ REDIS_AVAILABLE = False
 
 try:
     import redis
+    import redis.asyncio as aioredis
     from redis.commands.search.field import TextField, TagField, VectorField
     from redis.commands.search.indexDefinition import IndexDefinition, IndexType
     from redis.commands.search.query import Query
@@ -49,8 +50,11 @@ class RedisStore:
         self.embed_dim = int(os.getenv("EMBED_DIM", 1536))
         self.prefix = os.getenv("REDIS_PREFIX", "vec:")
         
-        # Connect to Redis
+        # Connect to Redis (sync client for initialization)
         self.redis_client = redis.from_url(self.redis_url)
+        
+        # Async Redis client for operations
+        self.async_redis_client = aioredis.from_url(self.redis_url)
         
         # Initialize/get the index
         self._initialize_index()
@@ -104,7 +108,7 @@ class RedisStore:
             logger.error(f"Failed to initialize Redis index: {e}")
             raise
     
-    def upsert(self, uid: str, vec: List[float], meta: Dict[str, Any]) -> bool:
+    async def upsert(self, uid: str, vec: List[float], meta: Dict[str, Any]) -> bool:
         """
         Store a vector with its metadata.
         
@@ -128,14 +132,14 @@ class RedisStore:
             
             # Store the document as JSON
             key = f"{self.prefix}{uid}"
-            self.redis_client.json().set(key, "$", document)
+            await self.async_redis_client.json().set(key, "$", document)
             
             return True
         except Exception as e:
             logger.error(f"Error upserting document {uid}: {e}")
             return False
     
-    def query(self, 
+    async def query(self, 
              vec: List[float], 
              k: int = 5, 
              filter_expr: Optional[str] = None) -> Dict[str, Any]:
@@ -172,7 +176,7 @@ class RedisStore:
             params = {"vector_param": vector_data.tobytes()}
             
             # Execute the query
-            result = self.redis_client.ft(self.index_name).search(query, params)
+            result = await self.async_redis_client.ft(self.index_name).search(query, params)
             
             # Format results to match other backends
             matches = []
@@ -196,4 +200,71 @@ class RedisStore:
             return {"matches": matches}
         except Exception as e:
             logger.error(f"Error querying vector store: {e}")
-            return {"matches": []} 
+            return {"matches": []}
+    
+    async def delete(self, uid: str) -> bool:
+        """
+        Delete a vector and its metadata.
+        
+        Args:
+            uid: Unique identifier for the vector to delete
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            key = f"{self.prefix}{uid}"
+            result = await self.async_redis_client.delete(key)
+            return result > 0  # Returns number of keys deleted
+        except Exception as e:
+            logger.error(f"Error deleting vector {uid}: {e}")
+            return False
+    
+    async def clear(self) -> None:
+        """
+        Delete all vectors with the configured prefix.
+        """
+        try:
+            # Get all keys with the prefix
+            cursor = 0
+            keys_to_delete = []
+            
+            while True:
+                cursor, keys = await self.async_redis_client.scan(cursor, match=f"{self.prefix}*")
+                keys_to_delete.extend(keys)
+                
+                if cursor == 0:
+                    break
+            
+            # Delete the keys in batches
+            if keys_to_delete:
+                for i in range(0, len(keys_to_delete), 100):
+                    batch = keys_to_delete[i:i+100]
+                    await self.async_redis_client.delete(*batch)
+                
+            logger.info(f"Cleared {len(keys_to_delete)} vectors from Redis")
+        except Exception as e:
+            logger.error(f"Error clearing vectors: {e}")
+    
+    async def count(self) -> int:
+        """
+        Return the number of vectors in the store.
+        
+        Returns:
+            int: Number of vectors
+        """
+        try:
+            cursor = 0
+            count = 0
+            
+            while True:
+                cursor, keys = await self.async_redis_client.scan(cursor, match=f"{self.prefix}*")
+                count += len(keys)
+                
+                if cursor == 0:
+                    break
+            
+            return count
+        except Exception as e:
+            logger.error(f"Error counting vectors: {e}")
+            return 0
