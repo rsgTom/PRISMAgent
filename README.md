@@ -6,9 +6,9 @@
 
 ## 1 · Why this repo exists
 
-1. **Rapid prototyping** – Spin up Streamlit + file-based storage in minutes.  
-2. **Future-proof** – Add Redis, Supabase (Postgres), Pinecone/Qdrant, Celery/Arq, or a React + Tailwind front-end **without refactoring core code**.  
-3. **AI-first extensibility** – Agents, tools, tasks, and even third-party plug-ins are created at runtime through factories; the directory layout simply keeps them discoverable.
+1. **Rapid prototyping** — Spin up Streamlit + file-based storage in minutes.  
+2. **Future-proof** — Add Redis, Supabase (Postgres), Pinecone/Qdrant, Celery/Arq, or a React + Tailwind front-end **without refactoring core code**.  
+3. **AI-first extensibility** — Agents, tools, tasks, and even third-party plug-ins are created at runtime through factories; the directory layout simply keeps them discoverable.
 
 ---
 
@@ -212,9 +212,9 @@ run_task(nightly_cleanup, schedule="0 3 * * *")  # cron, in-process
 
 ```text
 tests/
-├─ unit/          # pure Python, no I/O
-├─ integration/   # hits Redis / vector mocks
-└─ e2e/           # spins Docker Compose, calls live REST endpoints
+├── unit/          # pure Python, no I/O
+├── integration/   # hits Redis / vector mocks
+└── e2e/           # spins Docker Compose, calls live REST endpoints
 ```
 
 Run all in CI (`pytest -m "not slow"`).  
@@ -232,7 +232,18 @@ Mark slow or external tests with `@pytest.mark.integration` or `@pytest.mark.e2e
 
 ---
 
-## 10 · Roadmap
+## 10 · Roadmap & Project Organization
+
+### Project Organization
+
+We're using GitHub Projects to organize our work. Check out these project boards for current status:
+
+- [PRISMAgent Development Roadmap (#23)](https://github.com/rsgTom/PRISMAgent/issues/23) - Complete overview of all issues and priorities
+- [Critical Fixes & Immediate Tasks (#24)](https://github.com/rsgTom/PRISMAgent/issues/24) - Tracking urgent issues needing immediate attention
+- [Testing & Quality Improvements (#25)](https://github.com/rsgTom/PRISMAgent/issues/25) - Tracking test coverage and code quality initiatives
+- [Feature Development & Enhancements (#26)](https://github.com/rsgTom/PRISMAgent/issues/26) - New features and enhancements on the roadmap
+
+### Roadmap Items
 
 - [ ] Auth + rate-limit middleware  
 - [x] Vector memory RAG integration  
@@ -240,4 +251,11 @@ Mark slow or external tests with `@pytest.mark.integration` or `@pytest.mark.e2e
 - [ ] Celery/Arq driver in `tasks/`  
 - [ ] Helm chart & Terraform modules  
 
-> **Questions?** Open an issue or join the Discord. Happy hacking! 🎉
+### Current Priorities
+
+1. **Critical Fixes** - Complete async implementation in storage backends
+2. **Core Features** - Implement chat history storage and vector storage
+3. **Testing & Quality** - Improve test coverage and implement standard logging
+4. **Infrastructure** - Set up CI/CD pipeline with GitHub Actions
+
+> **Questions?** Open an issue or join the Discord. Happy hacking! 👉
