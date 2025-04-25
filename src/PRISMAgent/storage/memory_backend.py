@@ -29,7 +29,7 @@ class InMemoryStore:
         self.metadata = {}  # Maps ID to metadata
         logger.info("Initialized in-memory vector store (for development/testing only)")
     
-    def upsert(self, uid: str, vec: List[float], meta: Dict[str, Any]) -> bool:
+    async def upsert(self, uid: str, vec: List[float], meta: Dict[str, Any]) -> bool:
         """
         Store a vector with its metadata.
         
@@ -54,10 +54,10 @@ class InMemoryStore:
             logger.error(f"Error upserting vector {uid}: {e}")
             return False
     
-    def query(self, 
-              vec: List[float], 
-              k: int = 5, 
-              filter_expr: Optional[str] = None) -> Dict[str, Any]:
+    async def query(self, 
+               vec: List[float], 
+               k: int = 5, 
+               filter_expr: Optional[str] = None) -> Dict[str, Any]:
         """
         Find the k most similar vectors.
         
@@ -110,7 +110,7 @@ class InMemoryStore:
             logger.error(f"Error querying vector store: {e}")
             return {"matches": []}
     
-    def delete(self, uid: str) -> bool:
+    async def delete(self, uid: str) -> bool:
         """
         Delete a vector and its metadata.
         
@@ -126,18 +126,18 @@ class InMemoryStore:
             return True
         return False
     
-    def clear(self) -> None:
+    async def clear(self) -> None:
         """
         Delete all vectors and metadata from the store.
         """
         self.vectors.clear()
         self.metadata.clear()
     
-    def count(self) -> int:
+    async def count(self) -> int:
         """
         Return the number of vectors in the store.
         
         Returns:
             int: Number of vectors
         """
-        return len(self.vectors) 
+        return len(self.vectors)
