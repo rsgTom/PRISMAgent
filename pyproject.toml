@@ -1,87 +1,69 @@
 [build-system]
-requires = ["setuptools>=69", "wheel"]
+requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "prismagent"
+name = "PRISMAgent"
 version = "0.1.0"
-description = "Modular, multi-agent framework with plug‑and‑play storage, tools, and UIs"
+description = "A modular, multi-agent framework with plug-and-play storage, tools, and UIs"
 readme = "README.md"
-requires-python = ">=3.11"
-license = {text = "MIT"}
+requires-python = ">=3.9"
+license = {file = "LICENSE"}
+keywords = ["agent", "AI", "LLM", "memory", "vector", "tools"]
 authors = [
-  { name = "Thomas Bowman", email = "thomas@example.com" }
+    {name = "PRISMAgent Team"}
 ]
-keywords = ["AI", "agents", "openai-agents", "multi-agent", "framework"]
 classifiers = [
-  "License :: OSI Approved :: MIT License",
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.11",
-  "Typing :: Typed",
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
 ]
 
-# Core runtime deps
+# Add dependencies here
 dependencies = [
-  "openai>=1.23.0",          # OpenAI Python client
-  "openai-agents>=0.0.12",  # Agents SDK (latest Apr 22 2025)  
-  "pydantic>=2.7",
-  "httpx>=0.26",
-  "fastapi>=0.110",
-  "uvicorn[standard]>=0.29",
-  "streamlit>=1.33",
+    "pydantic>=2.0.0",
+    "python-dotenv>=1.0.0",
 ]
-
-[project.optional-dependencies]
-# Developer tooling (install with `pip install -e ".[dev]"`)
-dev = [
-  "ruff>=0.3",
-  "black>=24.4.0",
-  "mypy>=1.9",
-  "pytest>=8.0",
-  "pytest-asyncio>=0.23",
-  "pre-commit>=3.7",
-  "types-requests>=2.31",
-]
-# Storage back‑ends
-redis = ["redis[hiredis]>=5.0.0"]
-vector = [
-  "pinecone>=3.0",
-  "qdrant-client>=1.8",
-  "redisvl>=0.5.2",
-]
-# Agents SDK extras (install with e.g. `pip install 'prismagent[viz]'`)
-voice = ["openai-agents[voice]>=0.0.12"]
-viz = ["openai-agents[viz]>=0.0.12"]
-
-[project.urls]
-Repository = "https://github.com/your-org/prismagent"
-Documentation = "https://github.com/your-org/prismagent/tree/main/docs"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["PRISMAgent", "PRISMAgent.*"]
+
+[tool.setuptools.package-data]
+"PRISMAgent" = ["py.typed"]
+
+# Add test dependencies and configurations if needed
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.18.0",
+]
+dev = [
+    "black",
+    "mypy",
+    "ruff",
+]
 
 [tool.black]
 line-length = 88
-target-version = ["py311"]
+target-version = ["py39", "py310", "py311"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
 
 [tool.ruff]
 line-length = 88
-target-version = "py311"
-select = ["E", "F", "I", "UP", "B"]
-fix = true
-
-[tool.mypy]
-python_version = "3.11"
-strict = true
-files = ["src", "tests"]
-plugins = []
-
-[tool.pytest.ini_options]
-addopts = "-m 'not slow' -q"
-asyncio_mode = "auto"
+target-version = "py39"
+select = ["E", "F", "I"]
+ignore = []
 

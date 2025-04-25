@@ -141,16 +141,19 @@ logger = get_logger("my_module", config)
 The system supports three predefined formats:
 
 1. **default**: Simple format with timestamp, logger name, level, and message
-   ```
+
+   ```text
    2024-04-25 03:30:00,123 - my_module - INFO - User logged in
    ```
 
 2. **detailed**: More detailed format with file, line number, and thread
-   ```
+
+   ```text
    2024-04-25 03:30:00,123 - my_module - INFO - [file.py:123] - MainThread - User logged in
    ```
 
 3. **json**: Structured JSON format for machine parsing
+
    ```json
    {
      "timestamp": "2024-04-25 03:30:00,123",
@@ -182,21 +185,47 @@ The system supports three predefined formats:
 
 5. **Performance**: Set appropriate log levels in production to avoid performance impact.
 
-## Implementation Details
+## Implementation
 
-The PRISMAgent logging system is implemented in the `PRISMAgent.util.logging` module, with configuration classes in `PRISMAgent.config.logging`. The main components are:
+The PRISMAgent logging system has been implemented according to this documentation. The implementation includes:
 
-- `Logger`: The main logger class with context-aware logging methods
-- `LoggingConfig`: Pydantic model for logging configuration
-- `LogHandlerConfig`: Pydantic model for log handler configuration
-- `ContextFilter`: Filter that adds context information to log records
-- `JsonFormatter`: Formatter that outputs log records as JSON
-- `log_context`: Context manager for adding context to logs
-- `with_log_context`: Decorator to add context to logs in a function
-- `init_request_context`: Initialize request context for the current thread
-- `clear_request_context`: Clear request context for the current thread
-- `get_logger`: Factory function to get a logger with the given name and configuration
-- `configure_root_logger`: Configure the root logger with the given configuration
+1. A comprehensive logging system in `src/PRISMAgent/util/logging.py`
+2. Configuration in `src/PRISMAgent/config/logging.py`
+3. Integration with the application initialization in `src/PRISMAgent/__init__.py`
+
+### Key Features Implemented
+
+- ✅ Context-aware logging
+- ✅ Structured JSON logging
+- ✅ Multiple output destinations (console, file)
+- ✅ Configurable log levels and formats
+- ✅ Thread-local context storage
+- ✅ Automatic log file directory creation
+- ✅ Log file rotation
+
+### How to Use
+
+The logging system is automatically initialized when you import the PRISMAgent package. Logs are written to both the console and a file in the `logs` directory.
+
+You can see a complete example of how to use the logging system in `examples/logging_example.py`.
+
+### Logging Environment Variables
+
+The logging system can be configured through environment variables in your `.env` file. See the `.env.example` file for all available options.
+
+### Example Usage
+
+```python
+from PRISMAgent.util import get_logger
+
+# Get a logger for your module
+logger = get_logger(__name__)
+
+# Log messages at different levels
+logger.info("User logged in", user_id="123")
+logger.warning("Database connection slow", latency_ms=250)
+logger.error("Failed to process payment", payment_id="xyz-123", error="Insufficient funds")
+```
 
 ## Integration with External Services
 

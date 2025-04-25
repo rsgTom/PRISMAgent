@@ -42,31 +42,41 @@ jobs:
           fi
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
       
+      - name: Set lowercase repository name
+        id: lowercase-repo
+        run: echo "repo=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
       - name: Build and push API image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./deploy/Dockerfile
-          target: api
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository }}/api:${{ steps.tag.outputs.version }}
-            ${{ steps.tag.outputs.version == 'latest' && format('ghcr.io/{0}/api:latest', github.repository) || '' }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      
+        run: |
+          VERSION=${{ steps.tag.outputs.version }}
+          REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          TAGS="ghcr.io/${REPO}/api:${VERSION}"
+          if [[ "$VERSION" == "latest" ]]; then
+            TAGS="$TAGS ghcr.io/${REPO}/api:latest"
+          fi
+          docker buildx build \
+            --push \
+            --cache-from type=gha \
+            --cache-to type=gha,mode=max \
+            --file ./deploy/Dockerfile \
+            --target api \
+            --tag $TAGS .
+
       - name: Build and push Streamlit image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./deploy/Dockerfile
-          target: streamlit
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository }}/streamlit:${{ steps.tag.outputs.version }}
-            ${{ steps.tag.outputs.version == 'latest' && format('ghcr.io/{0}/streamlit:latest', github.repository) || '' }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+        run: |
+          VERSION=${{ steps.tag.outputs.version }}
+          REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          TAGS="ghcr.io/${REPO}/streamlit:${VERSION}"
+          if [[ "$VERSION" == "latest" ]]; then
+            TAGS="$TAGS ghcr.io/${REPO}/streamlit:latest"
+          fi
+          docker buildx build \
+            --push \
+            --cache-from type=gha \
+            --cache-to type=gha,mode=max \
+            --file ./deploy/Dockerfile \
+            --target streamlit \
+            --tag $TAGS .
 
   deploy-staging:
     name: Deploy to Staging
@@ -81,9 +91,9 @@ jobs:
       - name: Deploy to staging environment
         run: |
           echo "Deploying version ${{ needs.build-and-push.outputs.version }} to staging environment"
-          # Replace with actual deployment commands for your staging environment
-          # e.g., kubectl, Ansible, Terraform, or custom deployment scripts
-          # For now, we'll just echo a message
+            # Replace with actual deployment commands for your staging environment
+            # e.g., kubectl, Ansible, Terraform, or custom deployment scripts
+            # For now, we'll just echo a message
           echo "Deployed to staging environment successfully!"
 
   deploy-production:
@@ -92,7 +102,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production
-      url: https://example.com  # Replace with actual production URL
+      url: # Replace with actual production URL
     
     steps:
       - name: Checkout code
