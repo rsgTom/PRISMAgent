@@ -6,7 +6,7 @@ This document outlines the development priorities for the PRISMAgent project bas
 
 ## Current Status
 
-PRISMAgent has made significant progress from its early development stage. The critical infrastructure components have been implemented, including the tool factory, parameter fixes, and fully implemented registry protocol across all backends. The project is now organized with a clear roadmap and project boards to track progress on different work streams.
+PRISMAgent has made significant progress from its early development stage. The critical infrastructure components have been implemented, including the tool factory, parameter fixes, fully implemented registry protocol across all backends, and async implementation in all storage backends. The project is now organized with a clear roadmap and project boards to track progress on different work streams.
 
 ## Priority Matrix
 
@@ -15,7 +15,7 @@ PRISMAgent has made significant progress from its early development stage. The c
 | P0 | Low | Missing tool_factory | Implement the missing tool_factory function that's referenced but doesn't exist | ✅ Completed |
 | P0 | Low | Parameter mismatches | Fix inconsistencies between function signatures and calls | ✅ Completed |
 | P0 | Medium | Complete storage registry | Finish basic in-memory registry implementation | ✅ Completed - Registry Protocol fully implemented in all backends |
-| P0 | High | Missing Async Implementation | Implement proper async patterns in storage backends | 🔄 In Progress |
+| P0 | High | Missing Async Implementation | Implement proper async patterns in storage backends | ✅ Completed - All storage backends updated to use async/await |
 | P1 | Medium | Chat History Storage | Implement chat history storage and retrieval | ⏳ Ready for implementation |
 | P1 | High | Vector Storage | Complete vector storage implementation | ⏳ Ready for implementation |
 | P1 | Medium | Plugin System | Design and implement plugin registry | ⏳ Ready for implementation |
@@ -36,41 +36,42 @@ The project is now organized via GitHub Project Boards to provide better visibil
    - [Feature Development & Enhancements (#26)](https://github.com/rsgTom/PRISMAgent/issues/26) - New features roadmap
 
 2. **Current Progress**:
-   - Critical Issues: 3/4 completed (75%)
+   - Critical Issues: 4/4 completed (100%)
    - Core Features: 0/4 completed (0%)
    - Testing Improvements: 0/3 completed (0%)
    - Infrastructure: 0/5 completed (0%)
 
 ## Immediate Focus (Current Sprint)
 
-1. **Complete Remaining Critical Fix**:
-   - C4: Missing Async Implementation in Storage Backends (#4)
-
-2. **Begin Core Feature Implementation**:
+1. **Begin Core Feature Implementation**:
    - Implement Chat History Storage and Retrieval (#5)
+   - Start Vector Storage implementation (#6)
    - Start improving test coverage for Engine Module (#12)
 
-3. **Near-Term Focus (Next Sprint)**:
-   - Complete Vector Storage Implementation (#6)
+2. **Near-Term Focus (Next Sprint)**:
    - Implement Plugin System (#7)
+   - Implement Tasks Module (#8)
    - Set up CI/CD Pipeline with GitHub Actions (#22)
 
 ## Phase 1: Core Functionality (Completed ✅)
 
-We've successfully completed the critical fixes:
+We've successfully completed all the critical fixes needed for the core functionality:
 
 1. **Critical Fixes**:
    - ✅ Implement missing tool_factory function
    - ✅ Fix parameter mismatches in factory calls
    - ✅ Complete basic in-memory registry
-   - 🔄 Implementing async patterns in storage (in progress)
+   - ✅ Implement async patterns in all storage backends
+     - Added async/await to Redis backend
+     - Added async/await to RedisVL backend
+     - Added async/await to InMemory backend
+     - Added async/await to Pinecone backend
 
 ## Phase 2: Storage and Testing (In Progress 🔄)
 
-With core functionality stabilized, we're now focusing on:
+With core functionality complete, we're now focusing on:
 
 1. **Storage Implementation**:
-   - Implement proper async patterns in storage
    - Complete chat history storage and retrieval
    - Complete vector storage implementation
    - Enhance plugin system
@@ -134,6 +135,7 @@ Once the foundation is solid, we'll proceed with:
 | 2025-04-24 | Fix VectorStore registry implementation | Required for properly functioning registry backends | Ensures consistent interface for agent storage across backend types |
 | 2025-04-25 | Organize project with tracking boards | Improve visibility and collaboration | Better organization and prioritization of tasks |
 | 2025-04-25 | Focus on completing async implementation first | Blocking other storage features | Enables development of chat history and vector storage |
+| 2025-04-25 | Update all storage backends with async/await | Ensure consistent async interface | Enables all storage backends to be used in async workflows |
 
 ## Open Questions
 
