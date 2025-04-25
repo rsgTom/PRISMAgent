@@ -14,6 +14,7 @@ Please add new questions to the bottom of the file with a date stamp.
 [2025-04-24] Should storage backends be fully async or is a mixed approach acceptable?
 [2025-04-24] How should we handle migrations between different storage backends?
 [2025-04-24] What's the intended relationship between vector storage and registry storage?
+  - ANSWER [2025-04-24]: The VectorStore now implements the RegistryProtocol, keeping agent storage in a separate `_agents` dictionary. This gives us separation of concerns while providing a consistent interface across all registry types. Vector data and agent data are handled separately to allow vector operations without affecting agent storage.
 [2025-04-24] Should we implement full CRUD for all entities or just what's needed for agent operations?
 
 ## Tools Module
@@ -39,6 +40,7 @@ Please add new questions to the bottom of the file with a date stamp.
 [2025-04-24] How should we mock the OpenAI API in tests?
 [2025-04-24] What's the target test coverage percentage?
 [2025-04-24] Should we implement property-based testing for core components?
+[2025-04-25] How should we set up test fixtures for registry protocol testing across different backend implementations?
 
 ## Dependencies
 
