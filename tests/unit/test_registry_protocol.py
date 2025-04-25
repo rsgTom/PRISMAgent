@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 from agents import Agent
 
 from PRISMAgent.storage import registry_factory, InMemoryRegistry
-from PRISMAgent.storage.vector_backend import VectorStore
+from PRISMAgent.storage.vector_store import VectorStore
 
 # Test data
 TEST_AGENTS = {
@@ -79,8 +79,12 @@ class TestInMemoryRegistry(TestRegistryProtocol):
 
 
 class TestVectorStore(TestRegistryProtocol):
-    """Test the VectorStore implementation."""
+    """Test the VectorStore implementation of the Registry Protocol.
+    
+    The VectorStore class primarily provides vector storage capabilities but
+    also implements the RegistryProtocol for agent storage.
+    """
     
     def get_registry(self):
-        """Get a VectorStore instance with a mocked backend."""
+        """Get a VectorStore instance with default in-memory backend."""
         return VectorStore()
