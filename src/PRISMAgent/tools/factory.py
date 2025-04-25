@@ -12,13 +12,14 @@ the OpenAI Agents SDK function_tool decorator.
 from __future__ import annotations
 
 import inspect
-import logging
 from typing import Any, Callable, Dict, List, Optional, Type, Union, get_type_hints
 
 from agents import function_tool as agents_function_tool
 from pydantic import create_model, BaseModel, Field
+from PRISMAgent.util import get_logger, with_log_context
 
-logger = logging.getLogger(__name__)
+# Get a logger for this module
+logger = get_logger(__name__)
 
 __all__ = ["tool_factory", "list_available_tools"]
 
@@ -65,7 +66,7 @@ def tool_factory(
         func: The function to convert into a tool.
         name: Optional override for the tool's name (defaults to function name).
         description: Optional override for the tool's description 
-                (defaults to function docstring).
+               (defaults to function docstring).
     
     Returns:
         The wrapped function that can be used as a tool by agents.
@@ -93,6 +94,8 @@ def tool_factory(
     # Get parameter information
     params_info = _get_param_info(func)
     
+    logger.debug(f"Creating tool: {name}", tool_name=name)
+    
     # Apply the OpenAI function_tool decorator
     wrapped_func = agents_function_tool(func)
     
@@ -101,6 +104,10 @@ def tool_factory(
     wrapped_func.__prism_name__ = name
     wrapped_func.__prism_description__ = description
     wrapped_func.__prism_params__ = params_info
+    
+    logger.info(f"Tool {name} created successfully", 
+                tool_name=name, 
+                description=description)
     
     return wrapped_func
 
@@ -130,6 +137,10 @@ def list_available_tools() -> List[str]:
                 if callable(item) and hasattr(item, "__agents_tool__"):
                     tools.append(item_name)
         except ImportError as e:
-            logger.warning(f"Could not import tool module {module_name}: {e}")
+            logger.warning(f"Could not import tool module {module_name}: {e}", 
+                           module=module_name, 
+                           error=str(e),
+                           exc_info=True)
     
+    logger.debug(f"Found {len(tools)} available tools", tool_count=len(tools))
     return tools
