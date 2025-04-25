@@ -12,13 +12,15 @@ the OpenAI Agents SDK function_tool decorator.
 from __future__ import annotations
 
 import inspect
-import logging
 from typing import Any, Callable, Dict, List, Optional, Type, Union, get_type_hints
 
 from agents import function_tool as agents_function_tool
 from pydantic import create_model, BaseModel, Field
 
-logger = logging.getLogger(__name__)
+from PRISMAgent.util import get_logger, with_log_context
+
+# Get a logger for this module
+logger = get_logger(__name__)
 
 __all__ = ["tool_factory", "list_available_tools"]
 
@@ -49,6 +51,7 @@ def _get_param_info(func: Callable) -> Dict[str, Any]:
     return params_info
 
 
+@with_log_context(component="tool_factory")
 def tool_factory(
     func: Callable,
     *,
@@ -65,7 +68,7 @@ def tool_factory(
         func: The function to convert into a tool.
         name: Optional override for the tool's name (defaults to function name).
         description: Optional override for the tool's description 
-                (defaults to function docstring).
+            (defaults to function docstring).
     
     Returns:
         The wrapped function that can be used as a tool by agents.
@@ -90,8 +93,15 @@ def tool_factory(
     elif description is None:
         description = f"Tool for {name}"
     
+    logger.debug(f"Creating tool: {name}", 
+                tool_name=name, 
+                function_name=func.__name__)
+    
     # Get parameter information
     params_info = _get_param_info(func)
+    logger.debug(f"Tool {name} has {len(params_info)} parameters", 
+                tool_name=name, 
+                param_count=len(params_info))
     
     # Apply the OpenAI function_tool decorator
     wrapped_func = agents_function_tool(func)
@@ -102,9 +112,14 @@ def tool_factory(
     wrapped_func.__prism_description__ = description
     wrapped_func.__prism_params__ = params_info
     
+    logger.info(f"Created tool: {name}", 
+               tool_name=name, 
+               tool_description=description)
+    
     return wrapped_func
 
 
+@with_log_context(component="list_available_tools")
 def list_available_tools() -> List[str]:
     """List all available tools registered in the system."""
     # Import here to avoid circular imports
@@ -112,6 +127,7 @@ def list_available_tools() -> List[str]:
     from pkgutil import iter_modules
     from PRISMAgent.tools import __path__ as tools_path
     
+    logger.debug("Discovering available tools")
     tools = []
     
     # Discover tools in the tools package
@@ -121,15 +137,26 @@ def list_available_tools() -> List[str]:
             continue
         
         try:
+            logger.debug(f"Inspecting module: PRISMAgent.tools.{module_name}", module=module_name)
             module = import_module(f"PRISMAgent.tools.{module_name}")
             
             # Check for decorated functions
+            tool_count = 0
             for item_name in dir(module):
                 item = getattr(module, item_name)
                 
                 if callable(item) and hasattr(item, "__agents_tool__"):
                     tools.append(item_name)
+                    tool_count += 1
+            
+            logger.debug(f"Found {tool_count} tools in module {module_name}", 
+                         module=module_name, 
+                         tool_count=tool_count)
+                    
         except ImportError as e:
-            logger.warning(f"Could not import tool module {module_name}: {e}")
+            logger.warning(f"Could not import tool module {module_name}: {e}", 
+                          module=module_name, 
+                          error=str(e))
     
+    logger.info(f"Discovered {len(tools)} available tools", tool_count=len(tools))
     return tools
