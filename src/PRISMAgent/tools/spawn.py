@@ -1,6 +1,6 @@
 """
 PRISMAgent.tools.spawn
----------------------
+----------------------
 
 This module provides tools for spawning new agents.
 """
@@ -17,9 +17,10 @@ from PRISMAgent.util import get_logger, with_log_context
 # Get a logger for this module
 logger = get_logger(__name__)
 
+
 @tool_factory
 @with_log_context(component="spawn_agent_tool")
-def spawn_agent(
+async def spawn_agent(
     name: str,
     instructions: str,
     tools: Optional[List[Union[str, Callable]]] = None,
@@ -43,18 +44,20 @@ def spawn_agent(
     # Import here to avoid circular imports
     from PRISMAgent.tools import list_available_tools
     
-    logger.info(f"Spawning new agent: {name}", agent_name=name)
+    logger.info(f"Spawning new agent: {name}", 
+               agent_name=name, 
+               tool_count=len(tools) if tools else 0, 
+               handoff_count=len(handoffs) if handoffs else 0)
     
     # Validate and process tool specifications
     available_tools = list_available_tools()
     actual_tools: List[Callable] = []
     
     if tools:
-        logger.debug(f"Processing {len(tools)} tool specifications", tool_count=len(tools))
         for tool_spec in tools:
             # If it's already a callable, use it directly
             if callable(tool_spec):
-                logger.debug(f"Using callable tool directly", tool_type="callable")
+                logger.debug(f"Using callable tool: {getattr(tool_spec, '__name__', 'unnamed')}")
                 actual_tools.append(tool_spec)
                 continue
                 
@@ -70,12 +73,12 @@ def spawn_agent(
                 
                 try:
                     # Assume tools are in modules with the same name
-                    logger.debug(f"Dynamically importing tool: {tool_spec}", tool_name=tool_spec)
+                    logger.debug(f"Importing tool module: {tool_spec}", tool_name=tool_spec)
                     module = import_module(f"PRISMAgent.tools.{tool_spec}")
                     if hasattr(module, tool_spec):
                         tool_func = getattr(module, tool_spec)
+                        logger.debug(f"Found tool function: {tool_spec}", tool_name=tool_spec)
                         actual_tools.append(tool_func)
-                        logger.debug(f"Tool {tool_spec} imported successfully", tool_name=tool_spec)
                 except ImportError as e:
                     error_msg = f"Could not load tool module for: {tool_spec}"
                     logger.error(error_msg, tool_name=tool_spec, error=str(e), exc_info=True)
@@ -88,23 +91,21 @@ def spawn_agent(
         from PRISMAgent.storage import registry_factory
         registry = registry_factory()
         
-        logger.debug(f"Processing {len(handoffs)} handoff specifications", handoff_count=len(handoffs))
         for agent_name in handoffs:
-            logger.debug(f"Looking up agent for handoff: {agent_name}", agent_name=agent_name)
-            agent = registry.get_agent(agent_name)
+            logger.debug(f"Resolving handoff agent: {agent_name}", agent_name=agent_name)
+            agent = await registry.get_agent(agent_name)
             if not agent:
                 error_msg = f"Agent not found for handoff: {agent_name}"
                 logger.error(error_msg, agent_name=agent_name)
                 raise ValueError(error_msg)
             actual_handoffs.append(agent)
-            logger.debug(f"Agent {agent_name} found for handoff", agent_name=agent_name)
     
     # Create the agent via the factory function
-    logger.info(f"Creating agent {name} with {len(actual_tools)} tools and {len(actual_handoffs)} handoffs", 
-                agent_name=name, 
-                tool_count=len(actual_tools) if actual_tools else 0, 
-                handoff_count=len(actual_handoffs) if actual_handoffs else 0)
-    
+    logger.info(f"Creating agent {name} with {len(actual_tools)} tools and {len(actual_handoffs)} handoffs",
+                agent_name=name,
+                tool_count=len(actual_tools),
+                handoff_count=len(actual_handoffs))
+                
     agent = agent_factory(
         name=name,
         instructions=instructions,
@@ -113,9 +114,7 @@ def spawn_agent(
     )
     
     # Return information about the created agent
-    logger.info(f"Agent {name} created successfully", agent_name=name)
-    
-    result = {
+    response = {
         "id": agent.name,
         "status": "created",
         "tools": [
@@ -125,5 +124,5 @@ def spawn_agent(
         "handoffs": [a.name for a in actual_handoffs] if actual_handoffs else [],
     }
     
-    logger.debug("Returning agent creation result", result=result)
-    return result
+    logger.info(f"Successfully spawned agent: {name}", agent_name=name)
+    return response
