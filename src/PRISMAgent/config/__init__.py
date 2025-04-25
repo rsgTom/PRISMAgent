@@ -1,6 +1,6 @@
 """
 PRISMAgent.config
----------------
+--------------
 
 Configuration package for PRISMAgent.
 """
@@ -19,6 +19,12 @@ from .env import (
     STORAGE_PATH,
     LOG_LEVEL,
 )
+from .logging import (
+    LoggingConfig,
+    LogHandlerConfig,
+    get_logging_config,
+    logging_config,
+)
 
 __all__ = [
     "BaseSettings",
@@ -33,4 +39,8 @@ __all__ = [
     "STORAGE_BACKEND",
     "STORAGE_PATH",
     "LOG_LEVEL",
-] 
+    "LoggingConfig",
+    "LogHandlerConfig",
+    "get_logging_config",
+    "logging_config",
+]
