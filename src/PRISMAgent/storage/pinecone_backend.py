@@ -7,6 +7,7 @@ It supports both the new (v3+) and legacy Pinecone Python SDKs.
 
 import os
 import logging
+import asyncio
 from typing import List, Dict, Any, Optional, Union
 
 logger = logging.getLogger(__name__)
@@ -98,7 +99,7 @@ class PineconeStore:
             logger.error(f"Failed to initialize Pinecone (legacy SDK): {e}")
             raise
     
-    def upsert(self, 
+    async def upsert(self, 
                uid: str, 
                vec: List[float], 
                metadata: Dict[str, Any] = None) -> bool:
@@ -116,24 +117,40 @@ class PineconeStore:
         try:
             metadata = metadata or {}
             
+            # Pinecone operations are synchronous, so wrap in asyncio.to_thread 
+            # to avoid blocking the event loop in async environments
+            
             # Upsert the vector - API is the same for both SDK versions
-            self.index.upsert(
-                vectors=[{
-                    "id": uid,
-                    "values": vec,
-                    "metadata": metadata
-                }]
-            )
+            if PINECONE_VERSION == "new":
+                await asyncio.to_thread(
+                    self.index.upsert,
+                    vectors=[{
+                        "id": uid,
+                        "values": vec,
+                        "metadata": metadata
+                    }]
+                )
+            else:
+                # Legacy SDK doesn't work well with to_thread due to global state,
+                # so we'll run it directly but with a warning about blocking
+                logger.warning("Legacy Pinecone SDK operations are synchronous and may block the event loop")
+                self.index.upsert(
+                    vectors=[{
+                        "id": uid,
+                        "values": vec,
+                        "metadata": metadata
+                    }]
+                )
             
             return True
         except Exception as e:
             logger.error(f"Error upserting vector to Pinecone: {e}")
             return False
     
-    def query(self, 
-              vec: List[float], 
-              k: int = 5, 
-              filter_expr: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def query(self, 
+             vec: List[float], 
+             k: int = 5, 
+             filter_expr: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Query vectors from Pinecone.
         
@@ -148,13 +165,17 @@ class PineconeStore:
         try:
             # Query the vector - API is slightly different between versions
             if PINECONE_VERSION == "new":
-                results = self.index.query(
+                # Wrap in to_thread to avoid blocking
+                results = await asyncio.to_thread(
+                    self.index.query,
                     vector=vec,
                     top_k=k,
                     include_metadata=True,
                     filter=filter_expr
                 )
             else:
+                # Legacy SDK - direct call with warning
+                logger.warning("Legacy Pinecone SDK operations are synchronous and may block the event loop")
                 results = self.index.query(
                     vector=vec,
                     top_k=k,
@@ -165,4 +186,70 @@ class PineconeStore:
             return results
         except Exception as e:
             logger.error(f"Error querying Pinecone: {e}")
-            return {"matches": []} 
+            return {"matches": []}
+            
+    async def delete(self, uid: str) -> bool:
+        """
+        Delete a vector from the Pinecone index.
+        
+        Args:
+            uid: Unique ID for the vector to delete
+            
+        Returns:
+            bool: True if successful
+        """
+        try:
+            if PINECONE_VERSION == "new":
+                await asyncio.to_thread(self.index.delete, ids=[uid])
+            else:
+                logger.warning("Legacy Pinecone SDK operations are synchronous and may block the event loop")
+                self.index.delete(ids=[uid])
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting vector from Pinecone: {e}")
+            return False
+            
+    async def clear(self) -> bool:
+        """
+        Delete all vectors from the index with the same namespace.
+        
+        Returns:
+            bool: True if successful
+        """
+        try:
+            if PINECONE_VERSION == "new":
+                # New SDK supports deleteAll
+                await asyncio.to_thread(self.index.delete, delete_all=True)
+            else:
+                # Legacy SDK - get all IDs and delete
+                logger.warning("Legacy Pinecone SDK operations are synchronous and may block the event loop")
+                # This is a simplification - in practice, we'd need to paginate through
+                # all vectors in the index, which could be millions
+                stats = self.index.describe_index_stats()
+                if stats.get("total_vector_count", 0) > 0:
+                    # We can't easily get all IDs, so we'll just log a warning
+                    logger.warning("Legacy Pinecone SDK doesn't support clearing the entire index easily")
+                    return False
+            return True
+        except Exception as e:
+            logger.error(f"Error clearing Pinecone index: {e}")
+            return False
+            
+    async def count(self) -> int:
+        """
+        Count the number of vectors in the index.
+        
+        Returns:
+            int: Number of vectors
+        """
+        try:
+            if PINECONE_VERSION == "new":
+                stats = await asyncio.to_thread(self.index.describe_index_stats)
+                return stats.get("total_vector_count", 0)
+            else:
+                logger.warning("Legacy Pinecone SDK operations are synchronous and may block the event loop")
+                stats = self.index.describe_index_stats()
+                return stats.get("total_vector_count", 0)
+        except Exception as e:
+            logger.error(f"Error counting vectors in Pinecone: {e}")
+            return 0
