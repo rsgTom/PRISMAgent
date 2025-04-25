@@ -1,6 +1,6 @@
 """
 PRISMAgent.storage
------------------
+---------------
 
 Storage backends for PRISMAgent, providing agent registry and persistence.
 
