@@ -1,0 +1,61 @@
+name: Pull Request Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+jobs:
+  check-title:
+    name: Check PR Title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR Title
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Configure the types according to your conventions
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+            revert
+          requireScope: false
+          
+  required-labels:
+    name: Check Required Labels
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for required labels
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Get all labels
+          LABELS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+                   "https://api.github.com/repos/$REPO/issues/$PR_NUMBER" \
+                   | jq -r '.labels[].name')
+          
+          # Check if at least one type label exists
+          if echo "$LABELS" | grep -q -E 'enhancement|bug|feature|refactor|docs|test|ci|devops|fix'; then
+            echo "Type label found: OK"
+          else
+            echo "No type label found. Please add one of: enhancement, bug, feature, refactor, docs, test, ci, devops, fix"
+            exit 1
+          fi
+          
+          # Check if at least one priority label exists
+          if echo "$LABELS" | grep -q -E 'priority-high|priority-medium|priority-low'; then
+            echo "Priority label found: OK"
+          else
+            echo "No priority label found. Please add one of: priority-high, priority-medium, priority-low"
+            exit 1
+          fi
