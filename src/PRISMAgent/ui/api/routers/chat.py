@@ -1,6 +1,6 @@
 """
 Chat Router
-----------
+---------
 
 Router handling chat-related endpoints including message sending and history.
 """
@@ -39,7 +39,7 @@ async def send_message(chat_request: ChatRequest) -> Dict[str, Any]:
     """Send a message to an agent and get a response."""
     registry = registry_factory()
     
-    if not await registry.agent_exists(chat_request.agent_name):
+    if not await registry.exists(chat_request.agent_name):
         raise HTTPException(status_code=404, detail="Agent not found")
     
     agent = await registry.get_agent(chat_request.agent_name)
@@ -71,7 +71,7 @@ async def stream_chat(chat_request: ChatRequest) -> StreamingResponse:
     
     registry = registry_factory()
     
-    if not await registry.agent_exists(chat_request.agent_name):
+    if not await registry.exists(chat_request.agent_name):
         raise HTTPException(status_code=404, detail="Agent not found")
     
     agent = await registry.get_agent(chat_request.agent_name)
@@ -91,7 +91,7 @@ async def get_chat_history(agent_name: str) -> List[Dict[str, Any]]:
     """Get chat history for an agent."""
     registry = registry_factory()
     
-    if not await registry.agent_exists(agent_name):
+    if not await registry.exists(agent_name):
         raise HTTPException(status_code=404, detail="Agent not found")
     
     # This would need to be implemented in the storage backend
