@@ -1,6 +1,6 @@
 """
 PRISMAgent.config
---------------
+---------------
 
 Configuration package for PRISMAgent.
 """
@@ -12,6 +12,7 @@ from .env import (
     MODEL_MAX_TOKENS,
     MODEL_TEMPERATURE,
     OPENAI_API_KEY,
+    SEARCH_API_KEY,
     STORAGE_BACKEND,
     STORAGE_PATH,
     get_env,
@@ -33,6 +34,7 @@ __all__ = [
     "get_env_int",
     "get_env_float",
     "OPENAI_API_KEY",
+    "SEARCH_API_KEY",
     "DEFAULT_MODEL",
     "MODEL_TEMPERATURE",
     "MODEL_MAX_TOKENS",
