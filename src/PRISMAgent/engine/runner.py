@@ -1,6 +1,6 @@
 """
 PRISMAgent.engine.runner
-------------------------
+-----------------------
 
 Thin wrapper around the Agents-SDK `Runner`.
 """
@@ -13,13 +13,14 @@ from agents import Agent, Runner, StreamEvent
 from PRISMAgent.config.model import MODEL_SETTINGS
 from PRISMAgent.engine.hooks import DynamicHandoffHook
 from PRISMAgent.util import get_logger, with_log_context
+from PRISMAgent.util.exceptions import RunnerError, ExecutionError
 
 # Get a logger for this module
 logger = get_logger(__name__)
 
-# ---------------------------------------------------------------------- #
-# Runner factory                                                         #
-# ---------------------------------------------------------------------- #
+# --------------------------------------------------------------------- #
+# Runner factory                                                        #
+# --------------------------------------------------------------------- #
 @with_log_context(component="runner_factory")
 def runner_factory(
     *,
@@ -37,27 +38,35 @@ def runner_factory(
         
     Returns:
         Configured Runner instance
+        
+    Raises:
+        RunnerError: If there's an issue creating the runner
     """
-    logger.debug(f"Creating runner with stream={stream}", 
-                stream=stream, 
-                model=MODEL_SETTINGS.default_model)
-    
-    hooks = list(extra_hooks or []) + [DynamicHandoffHook()]
-    logger.debug(f"Applied {len(hooks)} hooks to runner", hook_count=len(hooks))
-    
-    runner = Runner(
-        default_model=MODEL_SETTINGS.default_model,
-        stream=stream,
-        extra_agent_hooks=hooks,
-        max_tools_per_run=max_tools_per_run,
-    )
-    
-    logger.info("Runner created successfully")
-    return runner
+    try:
+        logger.debug(f"Creating runner with stream={stream}", 
+                   stream=stream, 
+                   model=MODEL_SETTINGS.default_model)
+        
+        hooks = list(extra_hooks or []) + [DynamicHandoffHook()]
+        logger.debug(f"Applied {len(hooks)} hooks to runner", hook_count=len(hooks))
+        
+        runner = Runner(
+            default_model=MODEL_SETTINGS.default_model,
+            stream=stream,
+            extra_agent_hooks=hooks,
+            max_tools_per_run=max_tools_per_run,
+        )
+        
+        logger.info("Runner created successfully")
+        return runner
+    except Exception as e:
+        error_msg = f"Failed to create runner: {str(e)}"
+        logger.error(error_msg, error=str(e), exc_info=True)
+        raise RunnerError(error_msg)
 
-# ---------------------------------------------------------------------- #
-# Convenience helper                                                     #
-# ---------------------------------------------------------------------- #
+# --------------------------------------------------------------------- #
+# Convenience helper                                                    #
+# --------------------------------------------------------------------- #
 @with_log_context(component="run_agent")
 def run_agent(
     agent: Agent,
@@ -77,21 +86,33 @@ def run_agent(
         
     Returns:
         String output (non-streaming) or iterator of StreamEvents (streaming)
+        
+    Raises:
+        ExecutionError: If there's an issue during agent execution
+        RunnerError: If there's an issue creating the runner
     """
     logger.info(f"Running agent: {agent.name}", 
                agent_name=agent.name, 
                input_length=len(user_input), 
                stream=stream)
     
-    runner = runner_factory(stream=stream, **runner_kwargs)
-    
-    if stream:
-        logger.debug("Using streaming mode")
-        return runner.run_streamed(agent, user_input)
-    else:
-        logger.debug("Using non-streaming mode")
-        result = runner.run(agent, user_input)
-        logger.debug(f"Agent run completed", result_length=len(result))
-        return result
+    try:
+        runner = runner_factory(stream=stream, **runner_kwargs)
+        
+        if stream:
+            logger.debug("Using streaming mode")
+            return runner.run_streamed(agent, user_input)
+        else:
+            logger.debug("Using non-streaming mode")
+            result = runner.run(agent, user_input)
+            logger.debug(f"Agent run completed", result_length=len(result))
+            return result
+    except RunnerError:
+        # Re-raise runner errors
+        raise
+    except Exception as e:
+        error_msg = f"Error executing agent: {str(e)}"
+        logger.error(error_msg, agent_name=agent.name, error=str(e), exc_info=True)
+        raise ExecutionError(error_msg, agent_name=agent.name)
 
 __all__ = ["runner_factory", "run_agent"]
