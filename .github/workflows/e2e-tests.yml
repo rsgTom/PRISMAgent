@@ -11,6 +11,9 @@ jobs:
     name: End-to-End Tests
     runs-on: ubuntu-latest
     
+    # Skip running on external PRs that don't have access to secrets
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    
     services:
       redis:
         image: redis:7-alpine
@@ -40,7 +43,7 @@ jobs:
       run: |
         docker-compose -f deploy/docker-compose.yml up -d
       env:
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'fake-api-key-for-tests' }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     
     - name: Wait for services to be ready
       run: |
@@ -48,7 +51,7 @@ jobs:
     
     - name: Run e2e tests
       env:
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'fake-api-key-for-tests' }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         REDIS_HOST: localhost
         REDIS_PORT: 6379
       run: pytest -xvs tests/integration --marker="e2e"
