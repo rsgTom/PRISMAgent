@@ -17,6 +17,7 @@ from typing import Any, Callable, Dict, List, Optional, Type, Union, get_type_hi
 from agents import function_tool as agents_function_tool
 from pydantic import create_model, BaseModel, Field
 from PRISMAgent.util import get_logger, with_log_context
+from PRISMAgent.util.exceptions import ToolError, InvalidToolError, ToolNotFoundError
 
 # Get a logger for this module
 logger = get_logger(__name__)
@@ -26,30 +27,36 @@ __all__ = ["tool_factory", "list_available_tools"]
 
 def _get_param_info(func: Callable) -> Dict[str, Any]:
     """Extract parameter information from a function's signature and docstring."""
-    signature = inspect.signature(func)
-    type_hints = get_type_hints(func)
-    
-    # Get parameter information from signature
-    params_info = {}
-    for name, param in signature.parameters.items():
-        # Skip 'self' parameter for methods
-        if name == "self":
-            continue
+    try:
+        signature = inspect.signature(func)
+        type_hints = get_type_hints(func)
         
-        param_info = {
-            "required": param.default is param.empty,
-            "default": None if param.default is param.empty else param.default,
-        }
+        # Get parameter information from signature
+        params_info = {}
+        for name, param in signature.parameters.items():
+            # Skip 'self' parameter for methods
+            if name == "self":
+                continue
+            
+            param_info = {
+                "required": param.default is param.empty,
+                "default": None if param.default is param.empty else param.default,
+            }
+            
+            # Add type hint if available
+            if name in type_hints:
+                param_info["type"] = type_hints[name]
+            
+            params_info[name] = param_info
         
-        # Add type hint if available
-        if name in type_hints:
-            param_info["type"] = type_hints[name]
-        
-        params_info[name] = param_info
-    
-    return params_info
+        return params_info
+    except Exception as e:
+        error_msg = f"Failed to extract parameter information from {func.__name__}: {str(e)}"
+        logger.error(error_msg, function=func.__name__, error=str(e), exc_info=True)
+        raise InvalidToolError(error_msg, details={"function": func.__name__})
 
 
+@with_log_context(component="tool_factory")
 def tool_factory(
     func: Callable,
     *,
@@ -80,36 +87,45 @@ def tool_factory(
         
         search_tool = tool_factory(search)
         ```
+        
+    Raises:
+        InvalidToolError: If there's an issue creating the tool, such as
+            invalid signature or metadata issues.
     """
-    # Use function name if not provided
-    if name is None:
-        name = func.__name__
-    
-    # Use function docstring if description not provided
-    if description is None and func.__doc__:
-        description = inspect.cleandoc(func.__doc__).split("\n\n")[0]
-    elif description is None:
-        description = f"Tool for {name}"
-    
-    # Get parameter information
-    params_info = _get_param_info(func)
-    
-    logger.debug(f"Creating tool: {name}", tool_name=name)
-    
-    # Apply the OpenAI function_tool decorator
-    wrapped_func = agents_function_tool(func)
-    
-    # Add extra metadata for PRISMAgent
-    wrapped_func.__prism_tool__ = True
-    wrapped_func.__prism_name__ = name
-    wrapped_func.__prism_description__ = description
-    wrapped_func.__prism_params__ = params_info
-    
-    logger.info(f"Tool {name} created successfully", 
-                tool_name=name, 
-                description=description)
-    
-    return wrapped_func
+    try:
+        # Use function name if not provided
+        if name is None:
+            name = func.__name__
+        
+        # Use function docstring if description not provided
+        if description is None and func.__doc__:
+            description = inspect.cleandoc(func.__doc__).split("\n\n")[0]
+        elif description is None:
+            description = f"Tool for {name}"
+        
+        # Get parameter information
+        params_info = _get_param_info(func)
+        
+        logger.debug(f"Creating tool: {name}", tool_name=name)
+        
+        # Apply the OpenAI function_tool decorator
+        wrapped_func = agents_function_tool(func)
+        
+        # Add extra metadata for PRISMAgent
+        wrapped_func.__prism_tool__ = True
+        wrapped_func.__prism_name__ = name
+        wrapped_func.__prism_description__ = description
+        wrapped_func.__prism_params__ = params_info
+        
+        logger.info(f"Tool {name} created successfully", 
+                   tool_name=name, 
+                   description=description)
+        
+        return wrapped_func
+    except Exception as e:
+        error_msg = f"Failed to create tool {name}: {str(e)}"
+        logger.error(error_msg, tool_name=name, error=str(e), exc_info=True)
+        raise InvalidToolError(error_msg, details={"tool_name": name})
 
 
 def list_available_tools() -> List[str]:
