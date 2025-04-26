@@ -1,6 +1,6 @@
 """
 PRISMAgent.storage
------------------
+--------------
 
 Storage backends for PRISMAgent, providing agent registry and persistence.
 
@@ -17,6 +17,14 @@ from .chat_storage import BaseChatStorage, ChatMessage
 from .in_memory_chat_storage import InMemoryChatStorage
 from ..config import env
 from ..util import get_logger
+from ..util.exceptions import (
+    StorageError, 
+    DatabaseConnectionError, 
+    ChatStorageError,
+    ConfigurationError,
+    InvalidConfigurationError
+)
+from ..util.error_handling import handle_exceptions, error_context, validate_or_raise
 from .vector_backend import VectorStore 
 
 # Get a logger for this module
@@ -49,6 +57,15 @@ _REGISTRY: Optional[BaseRegistry] = None
 _CHAT_STORAGE: Optional[BaseChatStorage] = None
 
 
+@handle_exceptions(
+    error_map={
+        ValueError: InvalidConfigurationError,
+        FileNotFoundError: StorageError,
+        ConnectionError: DatabaseConnectionError,
+        OSError: StorageError,
+    },
+    default_error_class=StorageError
+)
 def registry_factory(registry_type: Optional[str] = None, **kwargs) -> BaseRegistry:
     """
     Factory function to get the configured registry backend.
@@ -70,8 +87,12 @@ def registry_factory(registry_type: Optional[str] = None, **kwargs) -> BaseRegis
         
     Raises
     ------
-    ValueError
+    InvalidConfigurationError
         If the specified registry type is not supported
+    StorageError
+        If there's an issue initializing the storage backend
+    DatabaseConnectionError
+        If there's a connection issue with the database
     """
     global _REGISTRY
     
@@ -83,36 +104,61 @@ def registry_factory(registry_type: Optional[str] = None, **kwargs) -> BaseRegis
     backend_type = registry_type or env.STORAGE_BACKEND or "memory"
     logger.info(f"Initializing storage backend: {backend_type}")
     
-    if backend_type not in _REGISTRY_BACKENDS:
-        error_msg = (f"Unsupported registry type: {backend_type}. "
-                     f"Valid types are: {', '.join(_REGISTRY_BACKENDS.keys())}")
-        logger.error(error_msg)
-        raise ValueError(error_msg)
+    # Validate backend type
+    validate_or_raise(
+        backend_type in _REGISTRY_BACKENDS,
+        f"Unsupported registry type: {backend_type}. Valid types are: {', '.join(_REGISTRY_BACKENDS.keys())}",
+        "registry_type",
+        InvalidConfigurationError,
+        details={"available_backends": list(_REGISTRY_BACKENDS.keys())}
+    )
     
     # Initialize the registry with the specified backend
     registry_class = _REGISTRY_BACKENDS[backend_type]
     
     # Pass any additional configuration to the registry
     if backend_type == "file" and "storage_path" not in kwargs:
-        kwargs["storage_path"] = env.STORAGE_PATH
+        storage_path = env.STORAGE_PATH
+        
+        # Validate storage path
+        if not storage_path:
+            raise InvalidConfigurationError(
+                "storage_path",
+                "string path",
+                "empty or missing",
+                details={"recommendation": "Set STORAGE_PATH environment variable or provide storage_path parameter"}
+            )
+            
+        kwargs["storage_path"] = storage_path
         logger.debug(f"Using storage path: {env.STORAGE_PATH}")
         
     logger.debug(f"Creating registry with backend type: {backend_type}", 
                  backend_type=backend_type, 
                  registry_class=registry_class.__name__)
     
-    try:
+    with error_context(
+        f"Initializing {backend_type} registry",
+        error_map={
+            ConnectionError: DatabaseConnectionError,
+            FileNotFoundError: StorageError,
+        },
+        context_details={"backend_type": backend_type, "registry_class": registry_class.__name__}
+    ):
         _REGISTRY = registry_class(**kwargs)
         logger.info(f"Storage backend initialized successfully: {backend_type}")
-    except Exception as e:
-        logger.error(f"Failed to initialize storage backend: {backend_type}", 
-                     error=str(e), 
-                     exc_info=True)
-        raise
     
     return _REGISTRY
 
 
+@handle_exceptions(
+    error_map={
+        ValueError: InvalidConfigurationError,
+        FileNotFoundError: StorageError,
+        ConnectionError: DatabaseConnectionError,
+        OSError: StorageError,
+    },
+    default_error_class=ChatStorageError
+)
 def chat_storage_factory(storage_type: Optional[str] = None, **kwargs) -> BaseChatStorage:
     """
     Factory function to get the configured chat storage backend.
@@ -134,8 +180,12 @@ def chat_storage_factory(storage_type: Optional[str] = None, **kwargs) -> BaseCh
         
     Raises
     ------
-    ValueError
+    InvalidConfigurationError
         If the specified storage type is not supported
+    ChatStorageError
+        If there's an issue initializing the chat storage backend
+    DatabaseConnectionError
+        If there's a connection issue with the database
     """
     global _CHAT_STORAGE
     
@@ -147,32 +197,48 @@ def chat_storage_factory(storage_type: Optional[str] = None, **kwargs) -> BaseCh
     backend_type = storage_type or env.STORAGE_BACKEND or "memory"
     logger.info(f"Initializing chat storage backend: {backend_type}")
     
-    if backend_type not in _CHAT_STORAGE_BACKENDS:
-        error_msg = (f"Unsupported chat storage type: {backend_type}. "
-                     f"Valid types are: {', '.join(_CHAT_STORAGE_BACKENDS.keys())}")
-        logger.error(error_msg)
-        raise ValueError(error_msg)
+    # Validate backend type
+    validate_or_raise(
+        backend_type in _CHAT_STORAGE_BACKENDS,
+        f"Unsupported chat storage type: {backend_type}. Valid types are: {', '.join(_CHAT_STORAGE_BACKENDS.keys())}",
+        "storage_type",
+        InvalidConfigurationError,
+        details={"available_backends": list(_CHAT_STORAGE_BACKENDS.keys())}
+    )
     
     # Initialize the chat storage with the specified backend
     storage_class = _CHAT_STORAGE_BACKENDS[backend_type]
     
     # Pass any additional configuration to the chat storage
     if backend_type == "file" and "storage_path" not in kwargs:
-        kwargs["storage_path"] = env.STORAGE_PATH
+        storage_path = env.STORAGE_PATH
+        
+        # Validate storage path
+        if not storage_path:
+            raise InvalidConfigurationError(
+                "storage_path",
+                "string path",
+                "empty or missing",
+                details={"recommendation": "Set STORAGE_PATH environment variable or provide storage_path parameter"}
+            )
+            
+        kwargs["storage_path"] = storage_path
         logger.debug(f"Using storage path: {env.STORAGE_PATH}")
         
     logger.debug(f"Creating chat storage with backend type: {backend_type}", 
                  backend_type=backend_type, 
                  storage_class=storage_class.__name__)
     
-    try:
+    with error_context(
+        f"Initializing {backend_type} chat storage",
+        error_map={
+            ConnectionError: DatabaseConnectionError,
+            FileNotFoundError: ChatStorageError,
+        },
+        context_details={"backend_type": backend_type, "storage_class": storage_class.__name__}
+    ):
         _CHAT_STORAGE = storage_class(**kwargs)
         logger.info(f"Chat storage backend initialized successfully: {backend_type}")
-    except Exception as e:
-        logger.error(f"Failed to initialize chat storage backend: {backend_type}", 
-                     error=str(e), 
-                     exc_info=True)
-        raise
     
     return _CHAT_STORAGE
 
