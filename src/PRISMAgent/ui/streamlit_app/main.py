@@ -1,1 +1,284 @@
-"""\nPRISMAgent Streamlit UI\n-----------------------\n\nA simple web interface for interacting with PRISMAgent.\n"""\n\nimport os\nimport streamlit as st\nfrom typing import Dict, Any, Optional, List\n\nfrom PRISMAgent.engine.factory import agent_factory\nfrom PRISMAgent.engine.runner import runner_factory\nfrom PRISMAgent.tools.spawn import spawn_agent\nfrom PRISMAgent.config import OPENAI_API_KEY\n\n# Load custom CSS\ndef load_css():\n    css_file = os.path.join(os.path.dirname(__file__), "style.css")\n    if os.path.exists(css_file):\n        with open(css_file) as f:\n            st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)\n\n# Load CSS\nload_css()\n\n# Page config\nst.set_page_config(\n    page_title="PRISMAgent",\n    page_icon="🛠",\n    layout="wide",\n)\n\n# Title and description\nst.title("PRISMAgent 🛠")\nst.markdown(\n    """\n    *A modular, multi-agent framework with plug-and-play storage, tools, and UIs.*\n    \n    Use this interface to interact with agents and spawn specialized agents for specific tasks.\n    """\n)\n\n# Check for API key\nif not OPENAI_API_KEY:\n    st.error("⚠️ OpenAI API key not found. Please set the OPENAI_API_KEY environment variable.")\n    st.stop()\n\n# Sidebar for agent configuration\nwith st.sidebar:\n    st.header("Agent Configuration")\n    \n    # Agent type selection\n    agent_type = st.selectbox(\n        "Agent Type",\n        ["assistant", "coder", "researcher"],\n        help="Select the type of agent to interact with",\n    )\n    \n    # Model selection\n    model = st.selectbox(\n        "Model",\n        ["gpt-o3-mini", "gpt-4.1"],\n        help="Select the model to use",\n    )\n    \n    # Task complexity\n    complexity = st.selectbox(\n        "Task Complexity",\n        ["auto", "basic", "advanced"],\n        help="Select the complexity level for the task",\n    )\n    \n    # Specify available tools\n    available_tools = st.multiselect(\n        "Available Tools",\n        ["spawn_agent", "web_search", "code_interpreter"],\n        default=["spawn_agent"],\n        help="Select tools this agent can use"\n    )\n    \n    # System prompt\n    system_prompt = st.text_area(\n        "System Prompt",\n        value="You are a helpful AI assistant.",\n        help="Custom instructions for the agent",\n    )\n\n# Main chat interface\nst.header("Chat Interface")\n\n# Initialize session state for chat history\nif "messages" not in st.session_state:\n    st.session_state.messages = []\n\n# Display chat history\nfor message in st.session_state.messages:\n    with st.chat_message(message["role"]):\n        st.markdown(message["content"])\n\n# Chat input\nif prompt := st.chat_input("What would you like help with?"):\n    # Add user message to chat history\n    st.session_state.messages.append({"role": "user", "content": prompt})\n    with st.chat_message("user"):\n        st.markdown(prompt)\n    \n    # Get agent response\n    with st.chat_message("assistant"):\n        with st.spinner("Thinking..."):\n            # Create tool list based on selections\n            tool_list: List[Any] = []\n            if "spawn_agent" in available_tools:\n                tool_list.append(spawn_agent)\n            \n            # Additional tools can be added here as they're implemented\n            # if "web_search" in available_tools:\n            #     tool_list.append(web_search)\n            # if "code_interpreter" in available_tools:\n            #     tool_list.append(code_interpreter)\n            \n            # Create or get agent\n            agent_name = f"{agent_type}_agent"\n            agent = agent_factory(\n                name=agent_name,\n                instructions=system_prompt,\n                tools=tool_list if tool_list else None,\n            )\n            \n            # Create runner\n            runner = runner_factory(stream=False)\n            \n            # Get response\n            response = runner.run(agent, prompt)\n            \n            # Add assistant response to chat history\n            st.session_state.messages.append({"role": "assistant", "content": response})\n            st.markdown(response)\n\n# Footer\nst.markdown("---")\nst.markdown(\n    """\n    <div style='text-align: center'>\n        <p>Made with ❤️ using PRISMAgent</p>\n    </div>\n    """,\n    unsafe_allow_html=True,\n) 
+"""
+PRISMAgent Streamlit UI
+-----------------------
+
+A web interface for interacting with PRISMAgent.
+"""
+
+import os
+import streamlit as st
+from typing import Dict, Any, Optional, List, Tuple
+
+from PRISMAgent.engine.factory import agent_factory
+from PRISMAgent.engine.runner import runner_factory
+from PRISMAgent.tools.spawn import spawn_agent
+from PRISMAgent.config import OPENAI_API_KEY
+from PRISMAgent.tools import list_available_tools
+
+# Load custom CSS
+def load_css():
+    css_file = os.path.join(os.path.dirname(__file__), "style.css")
+    if os.path.exists(css_file):
+        with open(css_file) as f:
+            st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+
+# Load CSS
+load_css()
+
+# Page config
+st.set_page_config(
+    page_title="PRISMAgent",
+    page_icon="🔮",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Initialize session state
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+    
+if "available_tools" not in st.session_state:
+    st.session_state.available_tools = list_available_tools()
+    
+if "current_agent" not in st.session_state:
+    st.session_state.current_agent = None
+    
+if "agents" not in st.session_state:
+    st.session_state.agents = {}
+
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = {}
+
+# Title and description
+col1, col2 = st.columns([3, 1])
+with col1:
+    st.title("PRISMAgent 🔮")
+    st.markdown(
+        """
+        *A modular, multi-agent framework with plug-and-play storage, tools, and UIs.*
+        
+        Use this interface to interact with agents and spawn specialized agents for specific tasks.
+        """
+    )
+
+# Check for API key
+if not OPENAI_API_KEY:
+    st.error("⚠️ OpenAI API key not found. Please set the OPENAI_API_KEY environment variable.")
+    st.stop()
+
+# Sidebar for agent configuration
+with st.sidebar:
+    st.header("Agent Configuration")
+    
+    # Agent type selection
+    agent_type = st.selectbox(
+        "Agent Type",
+        ["assistant", "coder", "researcher", "custom"],
+        help="Select the type of agent to interact with",
+    )
+    
+    # Agent name
+    if agent_type == "custom":
+        agent_name = st.text_input(
+            "Agent Name",
+            value="custom_agent",
+            help="Enter a unique name for your custom agent"
+        )
+    else:
+        agent_name = f"{agent_type}_agent"
+    
+    # Model selection
+    model = st.selectbox(
+        "Model",
+        ["gpt-o3-mini", "gpt-4.1"],
+        help="Select the model to use",
+    )
+    
+    # System prompt
+    system_prompt = st.text_area(
+        "System Prompt",
+        value=("You are a helpful AI assistant." if agent_type == "assistant" else
+               "You are an expert programmer and software developer." if agent_type == "coder" else
+               "You are a thorough researcher who provides detailed information." if agent_type == "researcher" else
+               "You are a specialized AI agent."),
+        help="Custom instructions for the agent",
+    )
+    
+    # Available tools
+    st.subheader("Available Tools")
+    tool_options = st.session_state.available_tools + ["spawn_agent"]
+    selected_tools = st.multiselect(
+        "Tools",
+        tool_options,
+        default=["spawn_agent"],
+        help="Select tools this agent can use"
+    )
+    
+    if agent_type == "coder":
+        if "code_interpreter" not in selected_tools:
+            selected_tools.append("code_interpreter")
+            st.info("Added code_interpreter tool for the coder agent.")
+            
+    if agent_type == "researcher":
+        if "web_search" not in selected_tools:
+            selected_tools.append("web_search")
+            st.info("Added web_search tool for the researcher agent.")
+    
+    # Advanced settings (collapsed by default)
+    with st.expander("Advanced Settings"):
+        stream_output = st.checkbox("Stream Output", value=True, 
+                                 help="Enable streaming responses from the agent")
+        
+        max_tools_per_run = st.number_input(
+            "Max Tools Per Run", 
+            min_value=1, 
+            max_value=10, 
+            value=5,
+            help="Maximum number of tool calls allowed per agent run"
+        )
+        
+        memory_provider = st.selectbox(
+            "Memory Provider",
+            ["none", "in_memory", "redis", "database"],
+            help="Choose how agent memory is stored"
+        )
+    
+    # Create/update agent button
+    if st.button("Create/Update Agent"):
+        with st.spinner(f"Creating agent: {agent_name}..."):
+            try:
+                # Convert tool names to actual tool objects
+                tool_list = []
+                for tool_name in selected_tools:
+                    if tool_name == "spawn_agent":
+                        tool_list.append(spawn_agent)
+                    elif tool_name == "code_interpreter":
+                        # This would be implemented later
+                        pass
+                    elif tool_name == "web_search":
+                        # This would be implemented later
+                        pass
+                
+                # Create the agent
+                agent = agent_factory(
+                    name=agent_name,
+                    instructions=system_prompt,
+                    tools=tool_list if tool_list else None,
+                )
+                
+                # Store in session state
+                st.session_state.current_agent = agent_name
+                st.session_state.agents[agent_name] = agent
+                st.session_state.chat_history[agent_name] = []
+                
+                st.success(f"Agent '{agent_name}' created successfully!")
+            except Exception as e:
+                st.error(f"Error creating agent: {str(e)}")
+                
+    # Agent selection (if multiple agents exist)
+    if len(st.session_state.agents) > 0:
+        st.subheader("Select Agent")
+        agent_names = list(st.session_state.agents.keys())
+        current_agent = st.selectbox(
+            "Active Agent",
+            agent_names,
+            index=agent_names.index(st.session_state.current_agent) if st.session_state.current_agent in agent_names else 0
+        )
+        
+        # Update current agent if changed
+        if current_agent != st.session_state.current_agent:
+            st.session_state.current_agent = current_agent
+            st.session_state.messages = st.session_state.chat_history.get(current_agent, [])
+            st.experimental_rerun()
+        
+        # Clear chat button
+        if st.button("Clear Chat History"):
+            st.session_state.chat_history[current_agent] = []
+            st.session_state.messages = []
+            st.experimental_rerun()
+
+# Main chat interface
+st.header("Chat Interface")
+
+# Display agent info
+if st.session_state.current_agent and st.session_state.current_agent in st.session_state.agents:
+    current_agent = st.session_state.agents[st.session_state.current_agent]
+    
+    # Display available tools for the current agent
+    tool_names = []
+    if hasattr(current_agent, 'tools') and current_agent.tools:
+        for tool in current_agent.tools:
+            tool_name = getattr(tool, "__prism_name__", getattr(tool, "__name__", "unknown"))
+            tool_names.append(tool_name)
+    
+    with st.expander("Current Agent Details", expanded=False):
+        st.markdown(f"**Name:** {current_agent.name}")
+        st.markdown(f"**Tools:** {', '.join(tool_names) if tool_names else 'None'}")
+        st.markdown(f"**Instructions:** {current_agent.instructions}")
+
+# Display chat history
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# Chat input
+if prompt := st.chat_input("What would you like help with?"):
+    # Ensure we have a current agent
+    if not st.session_state.current_agent or st.session_state.current_agent not in st.session_state.agents:
+        st.warning("Please create an agent first.")
+        st.stop()
+        
+    # Get the current agent
+    agent = st.session_state.agents[st.session_state.current_agent]
+    
+    # Add user message to chat history
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    st.session_state.chat_history[st.session_state.current_agent] = st.session_state.messages
+    
+    with st.chat_message("user"):
+        st.markdown(prompt)
+    
+    # Get agent response
+    with st.chat_message("assistant"):
+        with st.spinner("Thinking..."):
+            # Create runner
+            runner = runner_factory(
+                stream=stream_output if 'stream_output' in locals() else True,
+                max_tools_per_run=max_tools_per_run if 'max_tools_per_run' in locals() else 5
+            )
+            
+            # Create a placeholder for streaming output
+            response_placeholder = st.empty()
+            
+            if stream_output if 'stream_output' in locals() else True:
+                # Stream the response
+                full_response = ""
+                for event in runner.run_streamed(agent, prompt):
+                    if hasattr(event, 'content') and event.content:
+                        full_response += event.content
+                        response_placeholder.markdown(full_response)
+                
+                # Add the complete response to chat history
+                st.session_state.messages.append({"role": "assistant", "content": full_response})
+                st.session_state.chat_history[st.session_state.current_agent] = st.session_state.messages
+            else:
+                # Get non-streaming response
+                response = runner.run(agent, prompt)
+                
+                # Add to chat history
+                st.session_state.messages.append({"role": "assistant", "content": response})
+                st.session_state.chat_history[st.session_state.current_agent] = st.session_state.messages
+                
+                # Display response
+                st.markdown(response)
+
+# Footer
+st.markdown("---")
+st.markdown(
+    """
+    <div style='text-align: center'>
+        <p>Made with ❤️ using PRISMAgent</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
