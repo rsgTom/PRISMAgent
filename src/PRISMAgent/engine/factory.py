@@ -16,6 +16,7 @@ from agents import Agent  # OpenAI-Agents SDK
 from PRISMAgent.storage import registry_factory
 from PRISMAgent.tools import tool_factory
 from PRISMAgent.util import get_logger, with_log_context
+from PRISMAgent.util.exceptions import PRISMAgentError, AgentExistsError, ToolError
 
 # Get a logger for this module
 logger = get_logger(__name__)
@@ -23,27 +24,36 @@ logger = get_logger(__name__)
 __all__ = ["agent_factory", "spawn_agent"]
 
 
-# ----------------------------------------------------------------------- #
+# --------------------------------------------------------------------- #
 # Internal helpers
-# ----------------------------------------------------------------------- #
+# --------------------------------------------------------------------- #
 def _normalize_tools(tools: Optional[List[Callable]]) -> Optional[List[Callable]]:
     """Convert callables to SDK function-tools (idempotent)."""
     if not tools:
         return None
 
-    normalized: List[Callable] = []
-    for t in tools:
-        # Already a tool? keep as-is.
-        if getattr(t, "__agents_tool__", False):
-            normalized.append(t)
-        else:
-            normalized.append(tool_factory(t))
-    return normalized
+    try:
+        normalized: List[Callable] = []
+        for t in tools:
+            # Already a tool? keep as-is.
+            if getattr(t, "__agents_tool__", False):
+                normalized.append(t)
+            else:
+                normalized.append(tool_factory(t))
+        return normalized
+    except ToolError as e:
+        # Re-raise tool-specific errors
+        raise
+    except Exception as e:
+        # Handle unexpected errors
+        error_msg = f"Failed to normalize tools: {str(e)}"
+        logger.error(error_msg, error=str(e), exc_info=True)
+        raise PRISMAgentError(error_msg, details={"error": str(e)})
 
 
-# ----------------------------------------------------------------------- #
+# --------------------------------------------------------------------- #
 # Public factory
-# ----------------------------------------------------------------------- #
+# --------------------------------------------------------------------- #
 @with_log_context(component="agent_factory")
 def agent_factory(
     name: str,
@@ -62,33 +72,56 @@ def agent_factory(
 
     Returns:
         The live `Agent` object.
+        
+    Raises:
+        AgentExistsError: If an agent with the given name already exists.
+        ToolError: If there's an issue with tools.
+        PRISMAgentError: For other unexpected errors.
     """
     logger.info(f"Creating agent: {name}", agent_name=name)
     
     registry = registry_factory()
     
-    # Normalize tools
-    normalized_tools = _normalize_tools(tools)
-    if normalized_tools:
-        logger.debug(
-            f"Agent {name} initialized with {len(normalized_tools)} tools", 
-            agent_name=name, 
-            tool_count=len(normalized_tools)
+    # Check if agent already exists
+    if registry.exists_sync(name):
+        error_msg = f"Agent already exists: {name}"
+        logger.warning(error_msg, agent_name=name)
+        raise AgentExistsError(name)
+    
+    try:
+        # Normalize tools
+        normalized_tools = _normalize_tools(tools)
+        if normalized_tools:
+            logger.debug(
+                f"Agent {name} initialized with {len(normalized_tools)} tools", 
+                agent_name=name, 
+                tool_count=len(normalized_tools)
+            )
+        
+        # Create the agent
+        agent = Agent(
+            name=name,
+            instructions=instructions,
+            tools=normalized_tools,
+            handoffs=handoffs or [],
         )
-    
-    # Create the agent
-    agent = Agent(
-        name=name,
-        instructions=instructions,
-        tools=normalized_tools,
-        handoffs=handoffs or [],
-    )
-    
-    # Make the agent discoverable by runners / dashboards.
-    registry.register_agent(agent)
-    logger.info(f"Agent {name} registered successfully", agent_name=name)
-    
-    return agent
+        
+        # Make the agent discoverable by runners / dashboards.
+        registry.register_agent(agent)
+        logger.info(f"Agent {name} registered successfully", agent_name=name)
+        
+        return agent
+    except ToolError:
+        # Re-raise tool errors (already logged by tool_factory)
+        raise
+    except PRISMAgentError:
+        # Re-raise PRISMAgent errors 
+        raise
+    except Exception as e:
+        # Handle unexpected errors
+        error_msg = f"Failed to create agent {name}: {str(e)}"
+        logger.error(error_msg, agent_name=name, error=str(e), exc_info=True)
+        raise PRISMAgentError(error_msg, details={"agent_name": name, "error": str(e)})
 
 
 def spawn_agent(**kwargs) -> Agent:  # pragma: no cover
