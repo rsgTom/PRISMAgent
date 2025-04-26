@@ -18,7 +18,38 @@ from .logging import (
     configure_root_logger,
 )
 
+from .exceptions import (
+    PRISMAgentError,
+    ConfigurationError,
+    EnvironmentVariableError,
+    InvalidConfigurationError,
+    StorageError,
+    DatabaseConnectionError,
+    RegistryError,
+    AgentNotFoundError,
+    AgentExistsError,
+    ChatStorageError,
+    ToolError,
+    ToolNotFoundError,
+    ToolExecutionError,
+    InvalidToolError,
+    RunnerError,
+    RunnerConfigurationError,
+    ExecutionError,
+    ModelAPIError,
+    ValidationError,
+    AuthenticationError,
+)
+
+from .error_handling import (
+    handle_exceptions,
+    error_context,
+    format_exception_with_context,
+    validate_or_raise,
+)
+
 __all__ = [
+    # Logging
     "get_logger",
     "Logger",
     "LoggingConfig",
@@ -29,4 +60,32 @@ __all__ = [
     "init_request_context",
     "clear_request_context",
     "configure_root_logger",
+    
+    # Exceptions
+    "PRISMAgentError",
+    "ConfigurationError",
+    "EnvironmentVariableError",
+    "InvalidConfigurationError",
+    "StorageError",
+    "DatabaseConnectionError",
+    "RegistryError",
+    "AgentNotFoundError",
+    "AgentExistsError", 
+    "ChatStorageError",
+    "ToolError",
+    "ToolNotFoundError",
+    "ToolExecutionError",
+    "InvalidToolError",
+    "RunnerError",
+    "RunnerConfigurationError",
+    "ExecutionError",
+    "ModelAPIError",
+    "ValidationError",
+    "AuthenticationError",
+    
+    # Error Handling
+    "handle_exceptions",
+    "error_context",
+    "format_exception_with_context",
+    "validate_or_raise",
 ]
