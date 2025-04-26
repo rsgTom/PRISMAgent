@@ -12,7 +12,9 @@ from typing import Dict, Any, Optional, List, Tuple
 from PRISMAgent.engine.factory import agent_factory
 from PRISMAgent.engine.runner import runner_factory
 from PRISMAgent.tools.spawn import spawn_agent
-from PRISMAgent.config import OPENAI_API_KEY
+from PRISMAgent.tools.code_interpreter import code_interpreter
+from PRISMAgent.tools.web_search import web_search, fetch_url
+from PRISMAgent.config import OPENAI_API_KEY, SEARCH_API_KEY
 from PRISMAgent.tools import list_available_tools
 
 # Load custom CSS
@@ -61,7 +63,7 @@ with col1:
         """
     )
 
-# Check for API key
+# Check for API keys
 if not OPENAI_API_KEY:
     st.error("⚠️ OpenAI API key not found. Please set the OPENAI_API_KEY environment variable.")
     st.stop()
@@ -106,7 +108,10 @@ with st.sidebar:
     
     # Available tools
     st.subheader("Available Tools")
-    tool_options = st.session_state.available_tools + ["spawn_agent"]
+    tool_options = ["spawn_agent", "code_interpreter", "web_search", "fetch_url"] + st.session_state.available_tools
+    # Remove duplicates while preserving order
+    tool_options = list(dict.fromkeys(tool_options))
+    
     selected_tools = st.multiselect(
         "Tools",
         tool_options,
@@ -114,6 +119,7 @@ with st.sidebar:
         help="Select tools this agent can use"
     )
     
+    # Set default tools based on agent type
     if agent_type == "coder":
         if "code_interpreter" not in selected_tools:
             selected_tools.append("code_interpreter")
@@ -153,11 +159,11 @@ with st.sidebar:
                     if tool_name == "spawn_agent":
                         tool_list.append(spawn_agent)
                     elif tool_name == "code_interpreter":
-                        # This would be implemented later
-                        pass
+                        tool_list.append(code_interpreter)
                     elif tool_name == "web_search":
-                        # This would be implemented later
-                        pass
+                        tool_list.append(web_search)
+                    elif tool_name == "fetch_url":
+                        tool_list.append(fetch_url)
                 
                 # Create the agent
                 agent = agent_factory(
@@ -169,7 +175,13 @@ with st.sidebar:
                 # Store in session state
                 st.session_state.current_agent = agent_name
                 st.session_state.agents[agent_name] = agent
-                st.session_state.chat_history[agent_name] = []
+                
+                # Initialize or preserve chat history
+                if agent_name not in st.session_state.chat_history:
+                    st.session_state.chat_history[agent_name] = []
+                
+                # Set messages to current agent's history
+                st.session_state.messages = st.session_state.chat_history[agent_name]
                 
                 st.success(f"Agent '{agent_name}' created successfully!")
             except Exception as e:
@@ -215,6 +227,9 @@ if st.session_state.current_agent and st.session_state.current_agent in st.sessi
         st.markdown(f"**Name:** {current_agent.name}")
         st.markdown(f"**Tools:** {', '.join(tool_names) if tool_names else 'None'}")
         st.markdown(f"**Instructions:** {current_agent.instructions}")
+
+    # Add a visual indicator for the current agent
+    st.info(f"Active Agent: **{current_agent.name}**")
 
 # Display chat history
 for message in st.session_state.messages:
